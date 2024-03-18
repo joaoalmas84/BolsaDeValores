@@ -1,24 +1,31 @@
 #pragma once
+
 #include <windows.h>
 #include <tchar.h>
 
-#define TAM 200 
 #define N_COMANDOS 6
+#define TAM 200
 
+// estrutura que guarda a informação do comando
 typedef struct {
 	TCHAR Nome[TAM];
 	DWORD NumArgs;
 	TCHAR Args[4][TAM];
 	DWORD Index;
 } CMD;
+
+//|========================================================================================|
+//|===============================| Validação dos comandos |===============================|
+//|========================================================================================|
  
 // Validação do comando introduzido pelo utilizador
 // RETURNS:
 // TRUE: sucesso
 // FALSE: insucesso (ver msg para mais informação)
 BOOL ValidaCmd(
-	TCHAR* cmd,
-	TCHAR* msg);
+	const TCHAR* frase,
+	TCHAR* msg,
+	CMD* comando);
 
 // Preenche a variável cmd com toda a informação sobre o comando
 void ProcessaCmd(

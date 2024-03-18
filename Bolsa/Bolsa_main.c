@@ -4,7 +4,7 @@
 #include <fcntl.h> 
 #include <io.h>
 
-#include "Bolsa_utils.h"
+#include "Bolsa.h"
 #include "Bolsa_cmd.h"
 
 int _tmain(int argc, TCHAR* argv[]) {
@@ -14,9 +14,11 @@ int _tmain(int argc, TCHAR* argv[]) {
 	TCHAR msg[TAM];
 
 	// Buffer para guardar o comando recebido
-	TCHAR cmd[TAM];
+	TCHAR input[TAM];
 
-	DWORD cont = 0;
+	// Estrutura comando
+	CMD comando;
+
 	TCHAR c;
 
 #ifdef UNICODE
@@ -30,12 +32,19 @@ int _tmain(int argc, TCHAR* argv[]) {
 		return 1;
 	}*/
 
-	do {
-		if (cont > 0) {_tprintf(_T("\n[ERRO] '%s.'"), msg);}
-		GetCmd(cmd);
-		cont++;
+	while (1) {
+		GetCmd(input);
 		c = _gettchar();
-	} while (!ValidaCmd(cmd, msg));
+
+		if (!ValidaCmd(input, msg, &comando)) {
+			_tprintf(_T("\n[ERRO] %s."), msg);
+			continue;
+		}
+	
+		ExecutaComando(comando);
+
+		if (comando.Index == 5) { break; }
+	}
 
 	return 0;
 }

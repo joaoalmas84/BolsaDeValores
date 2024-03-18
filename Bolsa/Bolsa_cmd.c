@@ -3,25 +3,31 @@
 
 #include "Bolsa_cmd.h"
 
-BOOL ValidaCmd(TCHAR* frase, TCHAR* msg) {
+//|========================================================================================|
+//|===============================| Validação dos comandos |===============================|
+//|========================================================================================|
+
+BOOL ValidaCmd(const TCHAR* frase, TCHAR* msg, CMD* comando) {
 	// Nomes dos comandos
 	const TCHAR Nomes_Comandos[][TAM] = { _T("addc"), _T("listc"), _T("stock"),
-								_T("users"),  _T("pause"),  _T("close") };
+									_T("users"),  _T("pause"),  _T("close") };
 
 	// N.º de argumentos que cada comando recebe (contando com o nome do mesmo)
 	const DWORD Args_Comandos[] = { 4, 1, 3, 1, 2, 1 };
 
-	// Estrutura que guarda a info do comando
-	CMD cmd;
+	TCHAR* fraseCpy = _tcsdup(frase);
 
-	LimpaEspacos(frase);
+	LimpaEspacos(fraseCpy);
 
-	ProcessaCmd(frase, &cmd);
-	if (!CheckName(cmd, Nomes_Comandos, &cmd.Index, msg)) { return FALSE; }
+	ProcessaCmd(fraseCpy, comando);
 
-	if (!CheckNumArgs(cmd, Args_Comandos, msg)) { return FALSE; }
+	if (!CheckName(*comando, Nomes_Comandos, &comando->Index, msg)) { return FALSE; }
 
-	if (!CheckArgsConsistency(cmd, msg)) { return FALSE; }
+	if (!CheckNumArgs(*comando, Args_Comandos, msg)) { return FALSE; }
+
+	if (!CheckArgsConsistency(*comando, msg)) { return FALSE; }
+
+	free(fraseCpy);
 
 	return TRUE;
 }
@@ -42,15 +48,21 @@ void ProcessaCmd(const TCHAR* frase, CMD* cmd) {
 }
 
 BOOL CheckName(const CMD cmd, const TCHAR comandos[][TAM], DWORD* index, TCHAR* msg) {
+	TCHAR* nameCpy = _tcsdup(cmd.Nome);
+
 	for (DWORD i = 0; i < N_COMANDOS; i++) {
-		if (_tcscmp(ToLowerString(cmd.Nome), ToLowerString(comandos[i])) == 0) {
+		if (_tcscmp(ToLowerString(nameCpy), ToLowerString(comandos[i])) == 0) {
+			free(nameCpy);
 			*index = i;
 			msg = NULL;
 			return TRUE;
 		}
 	}
+
+	free(nameCpy);
 	*index = -1;
 	_tcscpy_s(msg, TAM, _T("Comando desconhecido"));
+
 	return FALSE;
 }
 
@@ -100,7 +112,7 @@ BOOL CheckArgsConsistency(const CMD cmd, TCHAR* msg) {
 //|========================================================================================|
 
 void GetCmd(TCHAR* cmd) {
-	_tprintf_s(_T("\nComando->"));
+	_tprintf_s(_T("\nComando -> "));
 	_tscanf_s(_T("%[^\n]"), cmd, TAM);
 }
 
@@ -159,28 +171,18 @@ TCHAR* ToLowerString(const TCHAR* s) {
 
 BOOL IsInteger(const TCHAR* str) {
 	TCHAR* endPtr;
-	long value = _tcstol(str, &endPtr, 10); // Convert string to long
+	long value = _tcstol(str, &endPtr, 10);
 
-	// Check if the conversion was successful
-	if (str == endPtr || *endPtr != _T('\0')) {
-		// Conversion failed or entire string was not converted
-		return FALSE;
-	}
-
-	return TRUE;
+	if (str == endPtr || *endPtr != _T('\0')) {return FALSE;}
+	else {return TRUE;}
 }
 
 BOOL IsFloat(const TCHAR* str) {
 	TCHAR* endPtr;
 	double res;
 
-	res = _tcstod(str, &endPtr); // Convert string to double
+	res = _tcstod(str, &endPtr);
 
-	// Check if the entire string was converted
-	if (str == endPtr || *endPtr != '\0') {
-		// Conversion failed or entire string was not converted
-		return FALSE;
-	}
-
-	return TRUE;
+	if (str == endPtr || *endPtr != '\0') {return FALSE;}
+	else { return TRUE; }
 }
