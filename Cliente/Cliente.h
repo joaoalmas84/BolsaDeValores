@@ -3,7 +3,7 @@
 #include <Windows.h>
 #include <tchar.h>
 
-#include "Cliente_cmd.h"
+#include "Commands.h"
 
 void ExecutaComando(const CMD comando);
 
@@ -18,3 +18,4 @@ void SELL();
 void BALANCE();
 
 void EXIT();
+

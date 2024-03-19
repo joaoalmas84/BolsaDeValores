@@ -2,7 +2,7 @@
 #include <tchar.h>
 
 #include "Bolsa.h"
-#include "Bolsa_cmd.h"
+#include "Commands.h"
 
 void ExecutaComando(const CMD comando) {
 	switch (comando.Index) {

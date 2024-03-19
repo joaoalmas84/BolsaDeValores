@@ -2,7 +2,7 @@
 #include <tchar.h>
 
 #include "Cliente.h"
-#include "Cliente_cmd.h"
+#include "Commands.h"
 
 void ExecutaComando(const CMD comando) {
 	switch (comando.Index) {

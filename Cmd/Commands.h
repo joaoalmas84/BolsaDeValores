@@ -4,7 +4,7 @@
 #include <tchar.h>
 
 #define N_COMANDOS 6
-#define TAM 200 
+#define TAM 200
 
 // estrutura que guarda a informação do comando
 typedef struct {
@@ -23,9 +23,10 @@ typedef struct {
 // TRUE: sucesso
 // FALSE: insucesso (ver msg para mais informação)
 BOOL ValidaCmd(
-	const TCHAR* frase,
-	TCHAR* msg,
-	CMD* comando);
+	const TCHAR* frase, // frase introduzida pelo utilizador
+	CMD* comando,		// estrutura comando a ser preenchida
+	TCHAR* msg,			// mensagem no caso das coisas correrem mal
+	BOOL bolsa);		// TRUE: bolsa; FALSE: cliente;
 
 // Preenche a variável cmd com toda a informação sobre o comando
 void ProcessaCmd(
@@ -53,7 +54,14 @@ BOOL CheckNumArgs(
 // RETURNS:
 // TRUE: argumentos validos
 // FALSE: argumentos invalidos (mais informação em msg)
-BOOL CheckArgsConsistency(
+BOOL CheckArgsConsistency_Bolsa(
+	const CMD cmd,			// comando introduzido
+	TCHAR* msg);			// mensagem no caso das coisas correrem mal
+
+// RETURNS:
+// TRUE: argumentos validos
+// FALSE: argumentos invalidos (mais informação em msg)
+BOOL CheckArgsConsistency_Cliente(
 	const CMD cmd,			// comando introduzido
 	TCHAR* msg);			// mensagem no caso das coisas correrem mal
 

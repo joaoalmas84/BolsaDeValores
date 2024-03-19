@@ -3,7 +3,7 @@
 #include <Windows.h>
 #include <tchar.h>
 
-#include "Bolsa_cmd.h"
+#include "Commands.h"
 
 void ExecutaComando(const CMD comando);
 
@@ -18,4 +18,3 @@ void USERS();
 void PAUSE();
 
 void CLOSE();
-

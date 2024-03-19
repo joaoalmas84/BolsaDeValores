@@ -1,19 +1,28 @@
 #include <Windows.h>
 #include <tchar.h>
+#include <stdlib.h>
 
-#include "Cliente_cmd.h"
+#include "pch.h"
+#include "Commands.h"
 
 //|========================================================================================|
 //|===============================| Validação dos comandos |===============================|
 //|========================================================================================|
 
-BOOL ValidaCmd(const TCHAR* frase, TCHAR* msg, CMD* comando) {
-	// Nomes dos comandos
-	const TCHAR Nomes_Comandos[][TAM] = { _T("login"), _T("listc"),  _T("buy"),  
+BOOL ValidaCmd(const TCHAR* frase, CMD* comando, TCHAR* msg, BOOL bolsa) {
+	// Nomes dos comandos da Bolsa
+	const TCHAR Nomes_Comandos_Bolsa[][TAM] = { _T("addc"), _T("listc"), _T("stock"),
+									_T("users"),  _T("pause"),  _T("close") };
+
+	// N.º de argumentos que cada comando da Bolsa recebe (contando com o nome do mesmo)
+	const DWORD Args_Comandos_Bolsa[] = { 4, 1, 3, 1, 2, 1 };
+
+	// Nomes dos comandos do Cliente
+	const TCHAR Nomes_Comandos_Cliente[][TAM] = { _T("login"), _T("listc"),  _T("buy"),
 									_T("sell"), _T("balance"), _T("exit") };
 
-	// N.º de argumentos que cada comando recebe (contando com o nome do mesmo)
-	const DWORD Args_Comandos[] = { 3, 1, 3, 3, 1, 1 };
+	// N.º de argumentos que cada comando do Cliente recebe (contando com o nome do mesmo)
+	const DWORD Args_Comandos_Cliente[] = { 3, 1, 3, 3, 1, 1 };
 
 	TCHAR* fraseCpy = _tcsdup(frase);
 
@@ -21,11 +30,19 @@ BOOL ValidaCmd(const TCHAR* frase, TCHAR* msg, CMD* comando) {
 
 	ProcessaCmd(fraseCpy, comando);
 
-	if (!CheckName(*comando, Nomes_Comandos, &comando->Index, msg)) { return FALSE; }
+	if (bolsa) {
+		if (!CheckName(*comando, Nomes_Comandos_Bolsa, &comando->Index, msg)) { return FALSE; }
 
-	if (!CheckNumArgs(*comando, Args_Comandos, msg)) { return FALSE; }
+		if (!CheckNumArgs(*comando, Args_Comandos_Bolsa, msg)) { return FALSE; }
 
-	if (!CheckArgsConsistency(*comando, msg)) { return FALSE; }
+		if (!CheckArgsConsistency_Bolsa(*comando, msg)) { return FALSE; }
+	} else {
+		if (!CheckName(*comando, Nomes_Comandos_Cliente, &comando->Index, msg)) { return FALSE; }
+
+		if (!CheckNumArgs(*comando, Args_Comandos_Cliente, msg)) { return FALSE; }
+
+		if (!CheckArgsConsistency_Cliente(*comando, msg)) { return FALSE; }
+	}
 
 	free(fraseCpy);
 
@@ -58,6 +75,7 @@ BOOL CheckName(const CMD cmd, const TCHAR comandos[][TAM], DWORD* index, TCHAR* 
 			return TRUE;
 		}
 	}
+
 	free(nameCpy);
 	*index = -1;
 	_tcscpy_s(msg, TAM, _T("Comando desconhecido"));
@@ -79,20 +97,49 @@ BOOL CheckNumArgs(const CMD cmd, const DWORD* arrayArgsComandos, TCHAR* msg) {
 	}
 }
 
-BOOL CheckArgsConsistency(const CMD cmd, TCHAR* msg) {
+BOOL CheckArgsConsistency_Bolsa(const CMD cmd, TCHAR* msg) {
 	switch (cmd.Index) {
-		case 2:
-		case 3:
-		case 4:
-			if (IsInteger(cmd.Args[2])) { return TRUE; }
-			else {
-				_stprintf_s(msg, TAM, _T("No comando '%s' o argumento n.º 2 é um inteiro"), cmd.Nome);
-				return FALSE;
-			}
-			break;
-		default:
-			return TRUE;
-			break;
+	case 0:
+		if (IsInteger(cmd.Args[2]) && IsFloat(cmd.Args[3])) { return TRUE; }
+		else {
+			_stprintf_s(msg, TAM, _T("No comando '%s' os argumentos n.º 2 e 3 são inteiros"), cmd.Nome);
+			return FALSE;
+		}
+		break;
+	case 2:
+		if (IsInteger(cmd.Args[2])) { return TRUE; }
+		else {
+			_stprintf_s(msg, TAM, _T("No comando '%s' o argumento n.º 2 é um inteiro"), cmd.Nome);
+			return FALSE;
+		}
+		break;
+	case 4:
+		if (IsInteger(cmd.Args[1])) { return TRUE; }
+		else {
+			_stprintf_s(msg, TAM, _T("No comando '%s' o argumento n.º 1 são inteiros"), cmd.Nome);
+			return FALSE;
+		}
+		break;
+	default:
+		return TRUE;
+		break;
+	}
+}
+
+BOOL CheckArgsConsistency_Cliente(const CMD cmd, TCHAR* msg) {
+	switch (cmd.Index) {
+	case 2:
+	case 3:
+	case 4:
+		if (IsInteger(cmd.Args[2])) { return TRUE; }
+		else {
+			_stprintf_s(msg, TAM, _T("No comando '%s' o argumento n.º 2 é um inteiro"), cmd.Nome);
+			return FALSE;
+		}
+		break;
+	default:
+		return TRUE;
+		break;
 	}
 }
 

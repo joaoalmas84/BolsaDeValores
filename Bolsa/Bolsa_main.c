@@ -5,11 +5,11 @@
 #include <io.h>
 
 #include "Bolsa.h"
-#include "Bolsa_cmd.h"
+#include "Commands.h"
 
 int _tmain(int argc, TCHAR* argv[]) {
 	int setmodeReturn;
-	
+
 	// Buffer para guardar mensagens de erro
 	TCHAR msg[TAM];
 
@@ -27,24 +27,23 @@ int _tmain(int argc, TCHAR* argv[]) {
 	setmodeReturn = _setmode(_fileno(stderr), _O_WTEXT);
 #endif 
 
-	/*if (argc != 2) {
-		_tprintf_s(_T("O programa Bolsa recebe 1 e apenas 1 argumento de entrada\nsendo este o nome do ficheiro com a informação relativa aos clientes."));
-		return 1;
-	}*/
+	//if (argc != 2) {
+	//	_tprintf_s(_T("O programa Bolsa recebe 1 e apenas 1 argumento de entrada\nsendo este o nome do ficheiro com a informação relativa aos clientes."));
+	//	return 1;
+	//}
 
 	while (1) {
 		GetCmd(input);
 		c = _gettchar();
 
-		if (!ValidaCmd(input, msg, &comando)) {
+		if (!ValidaCmd(input, &comando, msg, TRUE)) {
 			_tprintf(_T("\n[ERRO] %s."), msg);
-			continue;
+		} else {
+			ExecutaComando(comando);
+			if (comando.Index == 5) { break; }
 		}
-	
-		ExecutaComando(comando);
-
-		if (comando.Index == 5) { break; }
 	}
 
 	return 0;
 }
+

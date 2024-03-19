@@ -5,7 +5,7 @@
 #include <io.h>
 
 #include "Cliente.h"
-#include "Cliente_cmd.h"
+#include "Commands.h"
 
 int _tmain(int argc, TCHAR* argv[]) {
 	int setmodeReturn;
@@ -31,14 +31,15 @@ int _tmain(int argc, TCHAR* argv[]) {
 		GetCmd(input);
 		c = _gettchar();
 
-		if (!ValidaCmd(input, msg, &comando)) {
+		if (!ValidaCmd(input, &comando, msg, FALSE)) {
 			_tprintf(_T("\n[ERRO] %s."), msg);
-			continue;
+		}
+		else {
+			ExecutaComando(comando);
+
+			if (comando.Index == 5) { break; }
 		}
 
-		ExecutaComando(comando);
-
-		if (comando.Index == 5) { break; }
 	}
 
 
