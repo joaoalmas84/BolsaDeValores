@@ -6,6 +6,7 @@
 
 #include "Cliente.h"
 #include "Commands.h"
+#include "Utils.h"
 
 int _tmain(int argc, TCHAR* argv[]) {
 	int setmodeReturn;
@@ -33,8 +34,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 		if (!ValidaCmd(input, &comando, msg, FALSE)) {
 			_tprintf(_T("\n[ERRO] %s."), msg);
-		}
-		else {
+		} else {
 			ExecutaComando(comando);
 
 			if (comando.Index == 5) { break; }

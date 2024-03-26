@@ -5,14 +5,29 @@
 #include "pch.h"
 #include "Utils.h"
 
+void InitRand() {
+	srand((unsigned)time(NULL));
+}
+
+DWORD RandomValue(DWORD max, DWORD min) {
+	return rand() % (max - min + 1) + min;
+}
+
+BOOL CheckFileExistence(const LPCWSTR fileName, DWORD* dwCreationDisposition) {
+	if (GetFileAttributes(fileName) == INVALID_FILE_ATTRIBUTES) {
+		*dwCreationDisposition = CREATE_NEW;
+		return FALSE;
+	}
+	else {
+		*dwCreationDisposition = OPEN_EXISTING;
+		return TRUE;
+	}
+}
+
 DWORD PreencheThreadData(TDATA arrayThreadData[], const DWORD numThreads, const TDATA example) {
 	DWORD i;
 	for (i = 0; i < numThreads; i++) {
-		arrayThreadData[i].pSoma = example.pSoma;
-		arrayThreadData[i].pNumBloco = example.pNumBloco;
-		arrayThreadData[i].pContinua = example.pContinua;
-		arrayThreadData[i].pCs = example.pCs;
-		arrayThreadData[i].hEv = example.hEv;
+		arrayThreadData[i].whatever = 1;
 	}
 	return i;
 }
@@ -54,9 +69,9 @@ void PrintError(const DWORD codigoErro, const TCHAR* msg) {
 	TCHAR erro[200];
 
 	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, codigoErro, LANG_USER_DEFAULT, erro, 200, NULL);
-	_tprintf_s(_T("\n[ERRO] %d-%s\n"), codigoErro, erro);
+	_tprintf_s(_T("\n[ERRO] %d - %s"), codigoErro, erro);
 
 	if (msg != NULL && _tccmp(msg, _T("")) != 0) {
-		_tprintf_s(_T("\n(%s)"), msg);
+		_tprintf_s(_T("(%s)"), msg);
 	}
 }

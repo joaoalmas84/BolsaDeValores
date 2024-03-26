@@ -3,19 +3,28 @@
 #include <Windows.h>
 #include <tchar.h>
 #include <stdlib.h>
+#include <time.h>
 
-#include "pch.h"
 #include "Utils.h"
 
-// estrutura de dados das threads
+// Estrutura de dados das threads
 typedef struct {
-	unsigned int* pSoma;
-	unsigned int* pNumBloco;
-	BOOL* pContinua;
-
-	CRITICAL_SECTION* pCs;
-	HANDLE hEv;
+	int whatever;
 } TDATA;
+
+// Inicializa gerador de valores aleatórios
+void InitRand();
+
+// Gera um valor aleatório entre min e max
+DWORD RandomValue(
+	DWORD max, 
+	DWORD min);
+
+// Verifica se o ficheiro com o nome fileName existe e preenche dwCreationDisposition com o valor correspondente
+BOOL CheckFileExistence(
+	const LPCWSTR fileName,
+	DWORD* dwCreationDisposition);
+
 
 // Preenche as estruturas TDATA com a informação pretendida (example)
 DWORD PreencheThreadData(
