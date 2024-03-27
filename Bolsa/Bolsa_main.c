@@ -11,9 +11,7 @@
 int _tmain(int argc, TCHAR* argv[]) {
 	int setmodeReturn;
 
-	// Variaveis referentes ao Registry
-	HKEY chave;
-	TCHAR chave_completa[TAM], chave_nome[TAM], par_nome[TAM], par_valor[TAM];
+	DWORD numClintes = -1;
 
 	// Buffer para guardar mensagens de erro
 	TCHAR msg[TAM];
@@ -25,7 +23,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 	CMD comando;
 
 	TCHAR c;
-	DWORD res;
+	//DWORD res;
 
 #ifdef UNICODE
 	setmodeReturn = _setmode(_fileno(stdin), _O_WTEXT);
@@ -33,18 +31,8 @@ int _tmain(int argc, TCHAR* argv[]) {
 	setmodeReturn = _setmode(_fileno(stderr), _O_WTEXT);
 #endif 
 
-	//if (argc != 2) {
-	//	_tprintf_s(_T("O programa Bolsa recebe 1 e apenas 1 argumento de entrada\nsendo este o nome do ficheiro com a informação relativa aos clientes."));
-	//	return 1;
-	//}
-
-	_tcscpy_s(chave_nome, TAM, _T("NCLIENTES"));
-
-	_stprintf_s(chave_completa, TAM, _T("BolsaValores_SO2\\%s"), chave_nome);
-
-	if (RegCreateKeyEx(HKEY_CURRENT_USER, chave_completa, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &chave, &res) != ERROR_SUCCESS) {
-		PrintError(GetLastError(), _T("Erro no RegCreateKeyEx"));
-		return 1;
+	if ((numClintes = getNCLIENTES()) == -1) {
+		return -1;
 	}
 
 	while (1) {
@@ -53,13 +41,12 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 		if (!ValidaCmd(input, &comando, msg, TRUE)) {
 			_tprintf(_T("\n[ERRO] %s."), msg);
-		} else {
+		}
+		else {
 			ExecutaComando(comando);
 			if (comando.Index == 5) { break; }
 		}
 	}
-
-	RegCloseKey(chave);
 	return 0;
 }
 
