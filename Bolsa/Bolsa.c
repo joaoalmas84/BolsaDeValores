@@ -79,14 +79,15 @@ DWORD getNCLIENTES(){
 
 	if (queryResult == ERROR_SUCCESS) {
 		if (valueType == REG_DWORD) {
+
 			queryResult = RegQueryValueEx(chave, NCLIENTES, NULL, &valueType, (LPBYTE)&value, &dataSize);
-			//teste remover depois.
+
 			if (queryResult == ERROR_SUCCESS) {
 
 				RegCloseKey(chave);
 				return value;
 
-			}else {
+			}else{
 
 				PrintError(GetLastError(), _T("Erro no RegQueryValueEx"));
 				RegCloseKey(chave);
@@ -94,7 +95,7 @@ DWORD getNCLIENTES(){
 
 			}
 
-		}else {
+		}else{
 
 			_tprintf_s(_T("\nTipo de dados invalido o Registry foi alterado: %d "), queryResult);
 			queryResult = ERROR_FILE_NOT_FOUND;
@@ -103,8 +104,8 @@ DWORD getNCLIENTES(){
 	}
 	if(queryResult == ERROR_FILE_NOT_FOUND){
 		_tprintf_s(_T("\nO valor não existe. Criando..."));
-		DWORD AUX = STARTING_NUM_OF_NCLIENTES;
 
+		DWORD AUX = STARTING_NUM_OF_NCLIENTES;
 		DWORD setResult = RegSetValueEx(chave, NCLIENTES, 0, REG_DWORD, (LPBYTE)(&AUX), sizeof(AUX));
 
 		if (setResult != ERROR_SUCCESS) {
