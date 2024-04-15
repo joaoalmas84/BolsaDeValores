@@ -5,21 +5,19 @@
 #include "Commands.h"
 
 void ExecutaComando(const CMD comando) {
-
-
 	// NAO FAZ sentido isto estar aqui isto nao e poo!!!
 	/*switch (comando.Index) {
 		case 0:
 			ADDC();
 			break;
 		case 1:
-			//LISTC();
+			LISTC();
 			break;
 		case 2:
-			//STOCK();
+			STOCK();
 			break;
 		case 3:
-			//USERS();
+			USERS();
 			break;
 		case 4:
 			PAUSE();
@@ -40,6 +38,7 @@ void ExecutaComando(const CMD comando) {
 		_tprintf_s(_T("'%s' "), comando.Args[i]);
 	}
 }
+
 
 void ADDC(EMPRESA* empresas, DWORD* numDeEmpresas, const CMD* comando) {
 	// ver se ha espaco
@@ -73,15 +72,15 @@ void ADDC(EMPRESA* empresas, DWORD* numDeEmpresas, const CMD* comando) {
 
 void LISTC(const EMPRESA *empresas, DWORD numDeEmpresas) {
 
-	// Proteger isto como uma seção crítica
+	// Proteger isto como uma seÃ§Ã£o crÃ­tica
 	for (DWORD i = 0; i < numDeEmpresas; i++) {
-		_tprintf(_T("Empresa %d :\n\tNome: %s\n\tNúmero De Ação: %d\n\tPreço: %.3lf \n"), 
+		_tprintf(_T("Empresa %d :\n\tNome: %s\n\tNÃºmero De AÃ§Ã£o: %d\n\tPreÃ§o: %.3lf \n"), 
 			i, 
 			empresas[i].nome, 
 			empresas[i].numDeAcao, 
 			empresas[i].preco);
 	}
-	// Proteger isto como uma seção crítica
+	// Proteger isto como uma seÃ§Ã£o crÃ­tica
 }
 
 void STOCK(EMPRESA* empresas, DWORD numDeEmpresas, const TCHAR* nomeDaEmpresa, const TCHAR* strPreco) {
@@ -118,7 +117,6 @@ void USERS(const CARTEIRA_DE_ACOES* useres, DWORD numDeUseres) {
 }
 
 void PAUSE() {
-
 }
 
 void CLOSE(dadosDaThreadDeMemoria* infoThreadMemoria, HANDLE hthreadMemoria) {
@@ -168,7 +166,7 @@ DWORD getNCLIENTES(){
 		}
 	}
 	if(queryResult == ERROR_FILE_NOT_FOUND){
-		_tprintf_s(_T("\nO valor não existe. Criando..."));
+		_tprintf_s(_T("\nO valor nÃ£o existe. Criando..."));
 
 		DWORD AUX = STARTING_NUM_OF_NCLIENTES;
 		DWORD setResult = RegSetValueEx(chave, NCLIENTES, 0, REG_DWORD, (LPBYTE)(&AUX), sizeof(AUX));
@@ -186,7 +184,7 @@ DWORD getNCLIENTES(){
 
 void LerEmpresasDoArquivo(EMPRESA* empresas, DWORD* quantidade) {
 	FILE* arquivo;
-	wchar_t linha[TAM_TEXT * 3]; // Tamanho máximo de uma linha no arquivo
+	wchar_t linha[TAM_TEXT * 3]; // Tamanho mÃ¡ximo de uma linha no arquivo
 	wchar_t nome[TAM_TEXT];
 	DWORD numDeAcao;
 	DOUBLE preco;
@@ -198,7 +196,7 @@ void LerEmpresasDoArquivo(EMPRESA* empresas, DWORD* quantidade) {
 
 	while (fgetws(linha, sizeof(linha), arquivo) != NULL) {
 		if (*quantidade >= NUMERO_INICIAL_DE_EMPRESAS) {
-			_tprintf(_T("Número máximo de empresas atingido.\n"));
+			_tprintf(_T("NÃºmero mÃ¡ximo de empresas atingido.\n"));
 			break;
 		}
 
@@ -231,7 +229,7 @@ void LerUseresDoArquivo(CARTEIRA_DE_ACOES* useres, DWORD* quantidade) {
 
 	while (fgetws(linha, sizeof(linha), arquivo) != NULL) {
 		if (*quantidade >= NUMERO_INICIAL_DE_USERES) {
-			_tprintf_s(_T("Número máximo de usuários atingido.\n"));
+			_tprintf_s(_T("NÃºmero mÃ¡ximo de usuÃ¡rios atingido.\n"));
 			break;
 		}
 
@@ -287,7 +285,7 @@ DWORD WINAPI ThreadMemoria(LPVOID lpParam) {
 
 	hEvent = CreateEvent(NULL, TRUE, FALSE, NOME_DO_EVENTO_PARA_AVISAR_BOARD);
 	if (hEvent == NULL) {
-		_tprintf(_T("Erro ao criar o evento. Código de erro: %d\n"), GetLastError());
+		_tprintf(_T("Erro ao criar o evento. CÃ³digo de erro: %d\n"), GetLastError());
 		return 1;
 	}
 
@@ -300,7 +298,7 @@ DWORD WINAPI ThreadMemoria(LPVOID lpParam) {
 
 	dadosMemoria = (STRUCT_MEMORIA_VIRTUAL*)MapViewOfFile(hMap, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, 0);
 	if (dadosMemoria == NULL) {
-		_tprintf_s(_T("ERRO AO MAPEAR A MEMÓRIA"));
+		_tprintf_s(_T("ERRO AO MAPEAR A MEMÃ“RIA"));
 		CloseHandle(hMap);
 		CloseHandle(hEvent);
 		return 0;
@@ -311,11 +309,11 @@ DWORD WINAPI ThreadMemoria(LPVOID lpParam) {
 
 			dadosMemoria->empresas[i] = info->empresas[i];
 			dadosMemoria->numDeEmpresasExistentes = *(info->numDeEmpresas);
-			//_tprintf(_T("Nome: %s, Preço: %.2lf, Número de Ações: %u\n"), dadosMemoria->empresas[i].nome, dadosMemoria->empresas[i].preco, dadosMemoria->empresas[i].numDeAcao);
+			//_tprintf(_T("Nome: %s, PreÃ§o: %.2lf, NÃºmero de AÃ§Ãµes: %u\n"), dadosMemoria->empresas[i].nome, dadosMemoria->empresas[i].preco, dadosMemoria->empresas[i].numDeAcao);
 		}
 
 		if (!SetEvent(hEvent)) {
-			_tprintf(_T("Erro ao sinalizar o evento. Código de erro: %d\n"), GetLastError());
+			_tprintf(_T("Erro ao sinalizar o evento. CÃ³digo de erro: %d\n"), GetLastError());
 			CloseHandle(hEvent);
 			return 1;
 		}
