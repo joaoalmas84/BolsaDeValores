@@ -6,24 +6,36 @@
 
 #include "Bolsa.h"
 #include "Commands.h"
-#include "Utils.h"
+
 
 int _tmain(int argc, TCHAR* argv[]) {
+
 	int setmodeReturn;
-
 	DWORD numClintes = -1;
-
 	// Buffer para guardar mensagens de erro
 	TCHAR msg[TAM];
-
 	// Buffer para guardar o comando recebido
 	TCHAR input[TAM];
-
 	// Estrutura comando
 	CMD comando;
-
 	TCHAR c;
 	//DWORD res;
+
+	//dados das empreas 
+	EMPRESA empresas[NUMERO_INICIAL_DE_EMPRESAS];
+	DWORD numDeEmpresas = 0; // num existente de empresas
+
+	CARTEIRA_DE_ACOES useres[NUMERO_INICIAL_DE_USERES];
+	DWORD numDeUseres = 0; // num existente de carteiras
+
+
+	dadosDaThreadDeMemoria infoThreadMemoria;
+	HANDLE hThreadMemoria;
+	DWORD dwThreadMemoriaId;
+	infoThreadMemoria.empresas = empresas;
+	infoThreadMemoria.numDeEmpresas = &numDeEmpresas;
+	infoThreadMemoria.continua = TRUE;
+
 
 #ifdef UNICODE
 	setmodeReturn = _setmode(_fileno(stdin), _O_WTEXT);
@@ -35,18 +47,61 @@ int _tmain(int argc, TCHAR* argv[]) {
 		return -1;
 	}
 
+
+	LerEmpresasDoArquivo(empresas, &numDeEmpresas);
+	LerUseresDoArquivo(useres, &numDeUseres);
+
+	hThreadMemoria = CreateThread(
+		NULL,                   // Atributos de seguran�a (n�o especificados neste exemplo)
+		0,                      // Tamanho padr�o da pilha (n�o especificado neste exemplo)
+		ThreadMemoria,         // Fun��o de entrada da thread
+		&infoThreadMemoria,                   // Par�metro para a fun��o de entrada da thread (n�o especificado neste exemplo)
+		0,                      // Flags de cria��o (n�o especificado neste exemplo)
+		&dwThreadMemoriaId      // Identificador da thread
+	);
+	if (hThreadMemoria == NULL) {
+		PrintError(GetLastError(), _T("Erro ao criar a thread. C�digo de erro: %d\n"));
+		return 1;
+	}
+
+
 	while (1) {
 		GetCmd(input);
 		c = _gettchar();
 
 		if (!ValidaCmd(input, &comando, msg, TRUE)) {
 			_tprintf(_T("\n[ERRO] %s."), msg);
-		}
-		else {
+
+		}else {
+			switch (comando.Index) {
+			case 0:
+				ADDC(empresas, &numDeEmpresas, &comando);
+				break;
+			case 1:
+				LISTC(empresas, numDeEmpresas);
+				break;
+			case 2:
+				STOCK(empresas, numDeEmpresas, comando.Args[1], comando.Args[2]);
+				break;
+			case 3:
+				USERS(useres, numDeUseres);
+				break;
+			case 4:
+				PAUSE();
+				break;
+			case 5:
+				CLOSE(&infoThreadMemoria, hThreadMemoria);
+				break;
+			}
 			ExecutaComando(comando);
 			if (comando.Index == 5) { break; }
 		}
 	}
+
+
+	SalvarEmpresasNoArquivo(empresas, numDeEmpresas);
+	SalvarUseresNoArquivo(useres, numDeUseres);
+
 	return 0;
 }
 
