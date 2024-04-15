@@ -69,27 +69,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 		if (!ValidaCmd(input, &comando, msg, TRUE)) {
 			_tprintf(_T("\n[ERRO] %s."), msg);
 		}else {
-			switch (comando.Index) {
-			case 0:
-				ADDC(empresas, &numDeEmpresas, &comando);
-				break;
-			case 1:
-				LISTC(empresas, numDeEmpresas);
-				break;
-			case 2:
-				STOCK(empresas, numDeEmpresas, comando.Args[1], comando.Args[2]);
-				break;
-			case 3:
-				USERS(useres, numDeUseres);
-				break;
-			case 4:
-				PAUSE();
-				break;
-			case 5:
-				CLOSE(&infoThreadMemoria, hThreadMemoria);
-				break;
-			}
-			ExecutaComando(comando);
+			ExecutaComando(comando, empresas, &numDeEmpresas, useres, &numDeUseres, &infoThreadMemoria, hThreadMemoria);
 			if (comando.Index == 5) { break; }
 		}
 	}

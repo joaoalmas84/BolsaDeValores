@@ -4,31 +4,28 @@
 #include "Bolsa.h"
 #include "Commands.h"
 
-void ExecutaComando(const CMD comando) {
+void ExecutaComando(const CMD comando, EMPRESA* empresas, DWORD* numDeEmpresas, CARTEIRA_DE_ACOES* useres, DWORD* numDeUseres, dadosDaThreadDeMemoria* infoThreadMemoria, HANDLE hThreadMemoria) {
 
-
-	// NAO FAZ sentido isto estar aqui isto nao e poo!!!
-	/*switch (comando.Index) {
-		case 0:
-			ADDC();
-			break;
-		case 1:
-			//LISTC();
-			break;
-		case 2:
-			//STOCK();
-			break;
-		case 3:
-			//USERS();
-			break;
-		case 4:
-			PAUSE();
-			break;
-		case 5:
-			CLOSE();
-			break;
-	}*/
-	// NAO FAZ sentido isto caralho !!!
+	switch (comando.Index) {
+	case 0:
+		ADDC(empresas, numDeEmpresas, &comando);
+		break;
+	case 1:
+		LISTC(empresas, *numDeEmpresas);
+		break;
+	case 2:
+		STOCK(empresas, *numDeEmpresas, comando.Args[1], comando.Args[2]);
+		break;
+	case 3:
+		USERS(useres, *numDeUseres);
+		break;
+	case 4:
+		PAUSE();
+		break;
+	case 5:
+		CLOSE(infoThreadMemoria, hThreadMemoria);
+		break;
+	}
 
 	// Apagar depois
 	_tprintf_s(_T("\nComando: "));
@@ -63,7 +60,7 @@ void ADDC(EMPRESA* empresas, DWORD* numDeEmpresas, const CMD* comando) {
 	}
 	// criar 
 	// proteger com mutex ou outra coisa.
-	_tcscpy_s(empresas[*numDeEmpresas].nome, TAM_TEXT * sizeof(TCHAR), comando->Args[1]);
+	_tcscpy_s(empresas[*numDeEmpresas].nome, TAM_TEXT, comando->Args[1]);
 	empresas[*numDeEmpresas].numDeAcao = numAcoes;
 	empresas[*numDeEmpresas].preco = preco;
 	(*numDeEmpresas)++;

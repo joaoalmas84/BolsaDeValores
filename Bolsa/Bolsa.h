@@ -20,7 +20,7 @@ typedef struct{
 }dadosDaThreadDeMemoria;
 
 
-void ExecutaComando(const CMD comando);
+void ExecutaComando(const CMD comando, EMPRESA* empresas, DWORD* numDeEmpresas, CARTEIRA_DE_ACOES* useres, DWORD* numDeUseres, dadosDaThreadDeMemoria* infoThreadMemoria, HANDLE hThreadMemoria);
 
 void ADDC(EMPRESA* empresas, DWORD* numDeEmpresas, const CMD* comando);
 
