@@ -45,4 +45,3 @@ void LerUseresDoArquivo(CARTEIRA_DE_ACOES* useres, DWORD* quantidade);
 void SalvarUseresNoArquivo(CARTEIRA_DE_ACOES* useres, DWORD quantidade);
 
 DWORD WINAPI ThreadMemoria(LPVOID lpParam);
-

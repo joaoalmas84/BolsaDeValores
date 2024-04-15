@@ -2,7 +2,6 @@
 #include <tchar.h>
 #include <stdlib.h>
 
-#include "pch.h"
 #include "Commands.h"
 
 //|========================================================================================|
@@ -36,7 +35,8 @@ BOOL ValidaCmd(const TCHAR* frase, CMD* comando, TCHAR* msg, BOOL bolsa) {
 		if (!CheckNumArgs(*comando, Args_Comandos_Bolsa, msg)) { return FALSE; }
 
 		if (!CheckArgsConsistency_Bolsa(*comando, msg)) { return FALSE; }
-	} else {
+	}
+	else {
 		if (!CheckName(*comando, Nomes_Comandos_Cliente, &comando->Index, msg)) { return FALSE; }
 
 		if (!CheckNumArgs(*comando, Args_Comandos_Cliente, msg)) { return FALSE; }
@@ -100,16 +100,16 @@ BOOL CheckNumArgs(const CMD cmd, const DWORD* arrayArgsComandos, TCHAR* msg) {
 BOOL CheckArgsConsistency_Bolsa(const CMD cmd, TCHAR* msg) {
 	switch (cmd.Index) {
 	case 0:
-		if (IsInteger(cmd.Args[2]) && IsFloat(cmd.Args[3])) { return TRUE; }
+		if (IsInteger(cmd.Args[2]) && (IsInteger(cmd.Args[3]) || IsFloat(cmd.Args[3]))) { return TRUE; }
 		else {
 			_stprintf_s(msg, TAM, _T("No comando '%s' os argumentos n.º 2 e 3 são inteiros"), cmd.Nome);
 			return FALSE;
 		}
 		break;
 	case 2:
-		if (IsInteger(cmd.Args[2])) { return TRUE; }
+		if (IsInteger(cmd.Args[2]) || IsFloat(cmd.Args[2])) { return TRUE; }
 		else {
-			_stprintf_s(msg, TAM, _T("No comando '%s' o argumento n.º 2 é um inteiro"), cmd.Nome);
+			_stprintf_s(msg, TAM, _T("No comando '%s' o argumento n.º 2 é um Número"), cmd.Nome);
 			return FALSE;
 		}
 		break;

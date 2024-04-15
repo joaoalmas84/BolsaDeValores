@@ -36,7 +36,6 @@ int _tmain(int argc, TCHAR* argv[]) {
 	infoThreadMemoria.numDeEmpresas = &numDeEmpresas;
 	infoThreadMemoria.continua = TRUE;
 
-
 #ifdef UNICODE
 	setmodeReturn = _setmode(_fileno(stdin), _O_WTEXT);
 	setmodeReturn = _setmode(_fileno(stdout), _O_WTEXT);
@@ -47,23 +46,21 @@ int _tmain(int argc, TCHAR* argv[]) {
 		return -1;
 	}
 
-
 	LerEmpresasDoArquivo(empresas, &numDeEmpresas);
 	LerUseresDoArquivo(useres, &numDeUseres);
 
 	hThreadMemoria = CreateThread(
-		NULL,                   // Atributos de seguranï¿½a (nï¿½o especificados neste exemplo)
-		0,                      // Tamanho padrï¿½o da pilha (nï¿½o especificado neste exemplo)
-		ThreadMemoria,         // Funï¿½ï¿½o de entrada da thread
-		&infoThreadMemoria,                   // Parï¿½metro para a funï¿½ï¿½o de entrada da thread (nï¿½o especificado neste exemplo)
-		0,                      // Flags de criaï¿½ï¿½o (nï¿½o especificado neste exemplo)
+		NULL,                   // Atributos de segurança (não especificados neste exemplo)
+		0,                      // Tamanho padrão da pilha (não especificado neste exemplo)
+		ThreadMemoria,         // Função de entrada da thread
+		&infoThreadMemoria,                   // Parâmetro para a função de entrada da thread (não especificado neste exemplo)
+		0,                      // Flags de criação (não especificado neste exemplo)
 		&dwThreadMemoriaId      // Identificador da thread
 	);
 	if (hThreadMemoria == NULL) {
-		PrintError(GetLastError(), _T("Erro ao criar a thread. Cï¿½digo de erro: %d\n"));
+		PrintError(GetLastError(), _T("Erro ao criar a thread. Código de erro: %d\n"));
 		return 1;
 	}
-
 
 	while (1) {
 		GetCmd(input);
@@ -71,7 +68,6 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 		if (!ValidaCmd(input, &comando, msg, TRUE)) {
 			_tprintf(_T("\n[ERRO] %s."), msg);
-
 		}else {
 			switch (comando.Index) {
 			case 0:
@@ -98,10 +94,8 @@ int _tmain(int argc, TCHAR* argv[]) {
 		}
 	}
 
-
 	SalvarEmpresasNoArquivo(empresas, numDeEmpresas);
 	SalvarUseresNoArquivo(useres, numDeUseres);
-
 	return 0;
 }
 

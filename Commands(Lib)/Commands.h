@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <tchar.h>
 
+
 #define N_COMANDOS 6
 #define TAM 200
 

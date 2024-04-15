@@ -2,7 +2,6 @@
 #include <tchar.h>
 #include <stdlib.h>
 
-#include "pch.h"
 #include "Utils.h"
 
 void InitRand() {
