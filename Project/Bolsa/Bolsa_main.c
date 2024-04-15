@@ -54,7 +54,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 	// Lançamento da ThreadBoard
 	hThread[0] = CreateThread(NULL, 0, ThreadBoard, (LPVOID)&threadData, 0, &threadId);
-	if (hThread == NULL) {
+	if (hThread[0] == NULL) {
 		PrintError(GetLastError(), _T("Erro ao lançar ThreadBoard"));
 		return 1;
 	}

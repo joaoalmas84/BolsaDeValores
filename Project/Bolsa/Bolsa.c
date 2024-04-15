@@ -16,7 +16,7 @@ DWORD WINAPI ThreadBoard(LPVOID data) {
 
 	hEvent = CreateEvent(NULL, TRUE, FALSE, NOME_DO_EVENTO_PARA_AVISAR_BOARD);
 	if (hEvent == NULL) {
-		_tprintf(_T("Erro ao criar o evento. C�digo de erro: %d\n"), GetLastError());
+		_tprintf(_T("Erro ao criar o evento. Codigo de erro: %d\n"), GetLastError());
 		return 1;
 	}
 
@@ -29,7 +29,7 @@ DWORD WINAPI ThreadBoard(LPVOID data) {
 
 	dadosMemoria = (SHM*)MapViewOfFile(hMap, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, 0);
 	if (dadosMemoria == NULL) {
-		_tprintf_s(_T("ERRO AO MAPEAR A MEM�RIA"));
+		_tprintf_s(_T("ERRO AO MAPEAR A MEMORIA"));
 		CloseHandle(hMap);
 		CloseHandle(hEvent);
 		return 0;
@@ -38,13 +38,12 @@ DWORD WINAPI ThreadBoard(LPVOID data) {
 	while (info->continua) {
 		for (DWORD i = 0; i < *(info->numEmpresas); i++) {
 			dadosMemoria->empresas[i] = info->empresas[i];
-			//dadosMemoria->empresas[i] = info->empresas[i];
-			//dadosMemoria->numEmpresas = *(info->numEmpresas);
-			//_tprintf(_T("Nome: %s, Pre�o: %.2lf, N�mero de A��es: %u\n"), dadosMemoria->empresas[i].nome, dadosMemoria->empresas[i].preco, dadosMemoria->empresas[i].numDeAcao);
+			dadosMemoria->numEmpresas = *(info->numEmpresas);
+			//_tprintf(_T("Nome: %s, Preço: %.2lf, Número de Açoes: %u\n"), dadosMemoria->empresas[i].nome, dadosMemoria->empresas[i].preco, dadosMemoria->empresas[i].numDeAcao);
 		}
 
 		if (!SetEvent(hEvent)) {
-			_tprintf(_T("Erro ao sinalizar o evento. C�digo de erro: %d\n"), GetLastError());
+			_tprintf(_T("Erro ao sinalizar o evento. COdigo de erro: %d\n"), GetLastError());
 			CloseHandle(hEvent);
 			return 1;
 		}
@@ -54,7 +53,12 @@ DWORD WINAPI ThreadBoard(LPVOID data) {
 	}
 
 	dadosMemoria->continuar = FALSE;
-	SetEvent(hEvent);
+	_tprintf(_T("vou mudar para false\n"));
+	if (!SetEvent(hEvent)) {
+		PrintError(GetLastError(), _T("Erro ao sinalizar o evento. COdigo de erro: %d\n"));
+		CloseHandle(hEvent);
+		return 1;
+	}
 
 	// Libera recursos
 	UnmapViewOfFile(dadosMemoria);
@@ -67,7 +71,7 @@ DWORD WINAPI ThreadBoard(LPVOID data) {
 //|===============================| Comandos |===============================|
 //|==========================================================================|
 
-void ExecutaComando(const CMD comando, EMPRESA* empresas, DWORD* numEmpresas, CARTEIRA* users, DWORD* numUsers, TDATA_BOLSA* threadData, HANDLE hThread) {
+void ExecutaComando(const CMD comando, EMPRESA* empresas, DWORD* numEmpresas, CARTEIRA* users, DWORD* numUsers, TDATA_BOLSA* threadData, HANDLE* hThread) {
 
 	switch (comando.Index) {
 		case 0:
@@ -134,13 +138,22 @@ void ADDC(const CMD comando, EMPRESA* empresas, DWORD* numEmpresas) {
 void LISTC(const EMPRESA* empresas, DWORD numDeEmpresas) {
 	// Proteger isto como um mutex
 	for (DWORD i = 0; i < numDeEmpresas; i++) {
-		_tprintf(_T("Empresa %d :\n\tNome: %s\n\tN�mero De A��o: %d\n\tPre�o: %.3lf \n"),
+		_tprintf(_T("Empresa %d :\n\tNome: %s\n\tNúmero De Ação: %d\n\tPreço: %.3lf \n"),
 			i,
 			empresas[i].nome,
 			empresas[i].numDeAcao,
 			empresas[i].preco);
 	}
 	// Proteger isto como um mutex
+}
+
+DWORD compara_empresas(const void* a, const void* b) {
+	const EMPRESA* empresa1 = (const EMPRESA*)a;
+	const EMPRESA* empresa2 = (const EMPRESA*)b;
+
+	if (empresa1->preco < empresa2->preco) return 1;
+	if (empresa1->preco > empresa2->preco) return -1;
+	return 0;
 }
 
 void STOCK(EMPRESA* empresas, DWORD numDeEmpresas, const TCHAR* nomeDaEmpresa, const TCHAR* strPreco) {
@@ -153,6 +166,7 @@ void STOCK(EMPRESA* empresas, DWORD numDeEmpresas, const TCHAR* nomeDaEmpresa, c
 	for (DWORD i = 0; i < numDeEmpresas; i++) {
 		if (_tcscmp(empresas[i].nome, nomeDaEmpresa) == 0) {
 			empresas[i].preco = preco;
+			qsort(empresas, numDeEmpresas, sizeof(EMPRESA), compara_empresas);
 			return;
 		}
 	}
@@ -177,9 +191,9 @@ void PAUSE() {
 
 }
 
-void CLOSE(TDATA_BOLSA* threadData, HANDLE hThread) {
+void CLOSE(TDATA_BOLSA* threadData, HANDLE* hThread) {
 	threadData->continua = FALSE;
-	WaitForSingleObject(hThread, INFINITE);
+	WaitForSingleObject(hThread[0], INFINITE);
 }
 
 //|====================================================================================|
@@ -200,7 +214,7 @@ void LerEmpresasDoArquivo(EMPRESA* empresas, DWORD* numEmpresas) {
 
 	while (fgetws(linha, sizeof(linha), arquivo) != NULL) {
 		if (*numEmpresas >= NUMERO_MAX_DE_EMPRESAS) {
-			_tprintf(_T("N�mero m�ximo de empresas atingido.\n"));
+			_tprintf(_T("Número maximo de empresas atingido.\n"));
 			break;
 		}
 
@@ -213,6 +227,9 @@ void LerEmpresasDoArquivo(EMPRESA* empresas, DWORD* numEmpresas) {
 
 		} else { _tprintf(_T("Erro ao ler a linha.\n")); }
 	}
+
+	qsort(empresas, *numEmpresas, sizeof(EMPRESA), compara_empresas);
+
 	fclose(arquivo);
 }
 
@@ -245,7 +262,7 @@ void LerUsersDoArquivo(CARTEIRA* users, DWORD* numUsers) {
 
 	while (fgetws(linha, sizeof(linha), arquivo) != NULL) {
 		if (*numUsers >= NUMERO_MAX_DE_USERS) {
-			_tprintf_s(_T("N�mero m�ximo de usu�rios atingido.\n"));
+			_tprintf_s(_T("Número maximo de useres atingido.\n"));
 			break;
 		}
 

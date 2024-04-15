@@ -3,6 +3,9 @@
 #include <Windows.h>
 #include <tchar.h>
 
+#include <stdlib.h>
+#include <string.h>
+
 #include "Commands.h"
 #include "Utils.h"
 
@@ -39,7 +42,7 @@ void ExecutaComando(
 	CARTEIRA* users,
 	DWORD* numUsers,
 	TDATA_BOLSA* threadData,
-	HANDLE hThread);
+	HANDLE* hThread);
 
 void ADDC(
 	const CMD comando,
@@ -84,3 +87,4 @@ void SalvarUsersNoArquivo(CARTEIRA* users, DWORD numUsers);
 
 DWORD getNCLIENTES();
 
+int compara_empresas(const void* a, const void* b);
