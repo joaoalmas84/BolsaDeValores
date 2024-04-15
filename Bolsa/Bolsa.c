@@ -1,6 +1,6 @@
 #include <Windows.h>
 #include <tchar.h>
-
+#include <stdio.h>
 #include "Bolsa.h"
 #include "Commands.h"
 
@@ -258,7 +258,7 @@ void SalvarEmpresasNoArquivo(EMPRESA* empresas, DWORD quantidade) {
 		return;
 	}
 
-	for (int i = 0; i < quantidade; i++) {
+	for (DWORD i = 0; i < quantidade; i++) {
 		fwprintf(arquivo, _T("%ls %lu %.2lf\n"), empresas[i].nome, empresas[i].numDeAcao, empresas[i].preco);
 	}
 
@@ -273,7 +273,7 @@ void SalvarUseresNoArquivo(CARTEIRA_DE_ACOES* useres, DWORD quantidade) {
 		return;
 	}
 
-	for (int i = 0; i < quantidade; i++) {
+	for (DWORD i = 0; i < quantidade; i++) {
 		fwprintf_s(arquivo, _T("%ls %ls %.2lf\n"), useres[i].user.nome, useres[i].user.pass, useres[i].user.saldo);
 	}
 

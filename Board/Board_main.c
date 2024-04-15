@@ -38,7 +38,7 @@ int _tmain(int argc, TCHAR* argv[]) {
     }
 
     // Mapear a memória compartilhada para o espaço de endereço do processo
-    dadosMemoria = (EMPRESA*)MapViewOfFile(hMapFile, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, 0);
+    dadosMemoria = (STRUCT_MEMORIA_VIRTUAL*)MapViewOfFile(hMapFile, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, 0);
     if (dadosMemoria == NULL) {
         printf("Erro ao mapear a memória compartilhada. Código de erro: %d\n", GetLastError());
         CloseHandle(hMapFile);
@@ -47,7 +47,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     while(dadosMemoria->continuar){
         WaitForSingleObject(hEvent, INFINITE);
-        for (int i = 0; i < (numDeEmpresas > dadosMemoria->numDeEmpresasExistentes ? dadosMemoria->numDeEmpresasExistentes : numDeEmpresas) ; ++i) {
+        for (DWORD i = 0; i < (numDeEmpresas > dadosMemoria->numDeEmpresasExistentes ? dadosMemoria->numDeEmpresasExistentes : numDeEmpresas) ; ++i) {
             _tprintf(_T("Nome: %s, Preço: %.2lf, Número de Ações: %u\n"), dadosMemoria->empresas[i].nome, dadosMemoria->empresas[i].preco, dadosMemoria->empresas[i].numDeAcao);
         }
         _tprintf(_T("\n \n \n \n %s \n \n \n"), dadosMemoria->continuar ? _T("") : _T("\t\tO SERVIDOR FOI FECHADO :("));
