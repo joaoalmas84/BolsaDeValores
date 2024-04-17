@@ -101,14 +101,14 @@ BOOL CheckNumArgs(const CMD cmd, const DWORD* arrayArgsComandos, TCHAR* msg) {
 BOOL CheckArgsConsistency_Bolsa(const CMD cmd, TCHAR* msg) {
 	switch (cmd.Index) {
 	case 0:
-		if (IsInteger(cmd.Args[2]) && (IsFloat(cmd.Args[3]) || IsInteger(cmd.Args[2]))) { return TRUE; }
+		if (IsInteger(cmd.Args[2]) && (IsDouble(cmd.Args[3]) || IsInteger(cmd.Args[2]))) { return TRUE; }
 		else {
 			_stprintf_s(msg, TAM, _T("No comando '%s' os argumentos n.º 2 e 3 são inteiros"), cmd.Nome);
 			return FALSE;
 		}
 		break;
 	case 2:
-		if (IsInteger(cmd.Args[2]) || IsFloat(cmd.Args[2])) { return TRUE; }
+		if (IsInteger(cmd.Args[2]) || IsDouble(cmd.Args[2])) { return TRUE; }
 		else {
 			_stprintf_s(msg, TAM, _T("No comando '%s' o argumento n.º 2 é um inteiro"), cmd.Nome);
 			return FALSE;
@@ -145,7 +145,7 @@ BOOL CheckArgsConsistency_Cliente(const CMD cmd, TCHAR* msg) {
 }
 
 //|========================================================================================|
-//|=================================| Fun��es auxiliares |=================================|
+//|=================================| Funcoes auxiliares |=================================|
 //|========================================================================================|
 
 void GetCmd(TCHAR* cmd) {
@@ -214,7 +214,7 @@ BOOL IsInteger(const TCHAR* str) {
 	else { return TRUE; }
 }
 
-BOOL IsFloat(const TCHAR* str) {
+BOOL IsDouble(const TCHAR* str) {
 	TCHAR* endPtr;
 	double res;
 

@@ -91,4 +91,4 @@ TCHAR* ToLowerString(const TCHAR* s);
 BOOL IsInteger(const TCHAR* str);
 
 // Verifica se str é um float
-BOOL IsFloat(const TCHAR* str);
+BOOL IsDouble(const TCHAR* str);

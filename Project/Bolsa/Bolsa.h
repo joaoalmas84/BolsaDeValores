@@ -2,27 +2,21 @@
 
 #include <Windows.h>
 #include <tchar.h>
-
 #include <stdlib.h>
 #include <string.h>
 
 #include "Commands.h"
 #include "Utils.h"
 
-// Macros
-#define NCLIENTES _T("NCLIENTES")
-#define FILE_DADOS_EMPRESAS _T("dadosEmpresas.txt") // nome do ficheiro de emprecas 
-#define FILE_DADOS_USERS _T("dadosUsers.txt")		// nome do ficheiro de users 
-
-// Valores Constantes
-#define STARTING_NUM_OF_NCLIENTES 5	// número default PARA O NCLIENTES 
-#define NUMERO_MAX_DE_EMPRESAS 30	// numero inicial para as empresas
-#define NUMERO_MAX_DE_USERS 20		// numero inicial para as users
-
+// Thread Data - Processo Bolsa
 typedef struct {
 	BOOL continua;
 	EMPRESA* empresas;
 	DWORD* numEmpresas;
+	USER* clients;
+	DWORD* numClients;
+	HANDLE hEvent_Board; // 0 -> EventExit; 1: EventBoard;
+	HANDLE hMutex;
 } TDATA_BOLSA;
 
 //|=========================================================================|
@@ -31,60 +25,48 @@ typedef struct {
 
 DWORD WINAPI ThreadBoard(LPVOID data);
 
+DWORD WINAPI ThreadGetClients(LPVOID data);
+
+DWORD WINAPI ThreadClient(LPVOID data);
+
 //|==========================================================================|
 //|===============================| Comandos |===============================|
 //|==========================================================================|
 
-void ExecutaComando(
-	const CMD comando, 
-	EMPRESA* empresas, 
-	DWORD* numEmpresas, 
-	CARTEIRA* users,
-	DWORD* numUsers,
-	TDATA_BOLSA* threadData,
-	HANDLE* hThread);
+void ExecutaComando(const CMD comando, TDATA_BOLSA* threadData);
 
-void ADDC(
-	const CMD comando,
-	EMPRESA* empresas,
-	DWORD* numEmpresas);
+void ADDC(const CMD comando, TDATA_BOLSA* threadData);
 
-void LISTC(
-	const EMPRESA* empresas, 
-	DWORD numDeEmpresas);
+void LISTC(TDATA_BOLSA* threadData);
 
-void STOCK(
-	EMPRESA* empresas, 
-	DWORD numEmpresas, 
-	const TCHAR* nomeDaEmpresa,
-	const TCHAR* preco);
+void STOCK(const CMD comando, TDATA_BOLSA* threadData);
 
-void USERS(
-	const CARTEIRA* users, 
-	DWORD numUsers);
+void USERS(TDATA_BOLSA* threadData);
 
 void PAUSE();
 
-void CLOSE(
-	TDATA_BOLSA* infoThreadMemoria,
-	HANDLE hthreadMemoria);
+void CLOSE(TDATA_BOLSA* threadData);
 
 //|====================================================================================|
 //|===============================| Ficheiros de Dados |===============================|
 //|====================================================================================|
 
-void LerEmpresasDoArquivo(EMPRESA* empresas, DWORD* numEmpresas);
+void LerEmpresasDoArquivo(EMPRESA empresas[], DWORD* numEmpresas);
 
-void SalvarEmpresasNoArquivo(EMPRESA* empresas, DWORD numEmpresas);
+void SalvarEmpresasNoArquivo(const EMPRESA empresas[], DWORD numEmpresas);
 
-void LerUsersDoArquivo(CARTEIRA* users, DWORD* numUsers);
+void LerUsersDoArquivo(USER users[], DWORD* numUsers);
 
-void SalvarUsersNoArquivo(CARTEIRA* users, DWORD numUsers);
+void SalvarUsersNoArquivo(const USER users[], DWORD numUsers);
 
 //|========================================================================|
 //|===============================| Outras |===============================|
 //|========================================================================|
 
 DWORD getNCLIENTES();
+
+void InitializeEmpresas(EMPRESA empresas[]);
+
+void InitializeUsers(USER users[]);
 
 int compara_empresas(const void* a, const void* b);

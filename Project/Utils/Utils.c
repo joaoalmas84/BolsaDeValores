@@ -75,3 +75,29 @@ void PrintError(const DWORD codigoErro, const TCHAR* msg) {
 		_tprintf_s(_T("(%s)"), msg);
 	}
 }
+
+void PrintUser(const USER user) {
+	TCHAR buff[BIG_TEXT];
+	TCHAR estado[SMALL_TEXT];
+
+	if (user.ligado) {
+		_tcscpy_s(estado, SMALL_TEXT, _T("ligado"));
+	}
+	else {
+		_tcscpy_s(estado, SMALL_TEXT, _T("desligado"));
+	}
+
+	_sntprintf_s(buff, BIG_TEXT, BIG_TEXT, _T("\nNome: %s\nEstado: %s\nSaldo: %f\nN.º de empresas: %d\n"),
+		user.nome, estado, user.carteira.saldo, user.carteira.numEmpresas);
+
+	_tprintf_s(_T("%s"), buff);
+}
+
+void PrintEmpresa(const EMPRESA empresa) {
+	TCHAR buff[BIG_TEXT];
+
+	_sntprintf_s(buff, BIG_TEXT, BIG_TEXT, _T("\nNome: %s\nN.º de ações para venda: %d\nPreço por ação: %.2f"),
+		empresa.nome, empresa.numAcoes, empresa.preco);
+
+	_tprintf_s(_T("%s"), buff);
+}

@@ -1,12 +1,24 @@
-﻿#include "Board.h"
+﻿#include <windows.h>
+#include <tchar.h>
+#include <stdio.h>
+#include <fcntl.h> 
+#include <io.h>
+
+#include "Utils.h"
+#include "Board.h"
 
 int _tmain(int argc, TCHAR* argv[]) {
     int setmodeReturn;
 
-    DWORD numEmpresas, threadId;
-    SHM* dadosMemoria;
-    HANDLE hMapFile, hEvent, hThreadOutput;
-    BOOL continuar = TRUE;
+    // Numero de empresas a listar
+    DWORD N;
+
+    // Variáveis da Thread
+    DWORD threadId;
+    HANDLE hThread;
+    TDATA_BOARD threadData;
+
+    TCHAR c;
 
 #ifdef UNICODE
     setmodeReturn = _setmode(_fileno(stdin), _O_WTEXT);
@@ -14,49 +26,63 @@ int _tmain(int argc, TCHAR* argv[]) {
     setmodeReturn = _setmode(_fileno(stderr), _O_WTEXT);
 #endif 
 
-    if (argc != 2 || (numEmpresas = _wtoi(argv[1])) <= 0) {
+    if (argc != 2 ) {
         _tprintf_s(_T("O programa Board recebe 1 e apenas 1 argumento de entrada\nsendo este o n.º de empresas a listar"));
         return 1;
-    }
-    numEmpresas = numEmpresas >= 10 ? 10 : numEmpresas;
-
-    hThreadOutput = CreateThread(NULL, 0, ThreadOutput, (LPVOID)&continuar, 0, &threadId);
-    if (hThreadOutput == NULL) {
-        PrintError(GetLastError(), _T("Erro ao lançar ThreadBoard"));
+    } else if (_wtoi(argv[1]) <= 0) {
+        _tprintf_s(_T("O n.º de empresas a listar é inválido!"));
         return 1;
     }
 
-    hEvent = OpenEvent(SYNCHRONIZE, FALSE, NOME_DO_EVENTO_PARA_AVISAR_BOARD);
-    if (hEvent == NULL) {
-        _tprintf(_T("Erro ao abrir o evento. Codigo de erro: %d OU o server ainda nao esta aberto\n"), GetLastError());
+    N = _wtoi(argv[1]);
+
+    if (N > 10) { N = 10; }
+
+    threadData.hEvents[0] = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (threadData.hEvents[0] == NULL) {
+        PrintError(GetLastError(), _T("Erro em CreatEvent"));
         return 1;
     }
 
-    hMapFile = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, sizeof(SHM), NOME_DO_FILE_MEMORIA_VIRTUAL);
-    if (hMapFile == NULL) {
-        PrintError(GetLastError(), _T("Erro em CreateFileMapping"));
+    threadData.hEvents[1] = OpenEvent(SYNCHRONIZE, FALSE, SHM_EVENT);
+    if (threadData.hEvents[1] == NULL) {
+        PrintError(GetLastError(), _T("Erro em OpenEvent"));
         return 1;
     }
 
-    // Mapear a mem�ria compartilhada para o espa�o de endere�o do processo
-    dadosMemoria = (SHM*)MapViewOfFile(hMapFile, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, 0);
-    if (dadosMemoria == NULL) {
-        PrintError(GetLastError(), _T("Erro em MapViewOfFile"));
-        CloseHandle(hMapFile);
+    threadData.hMutex = CreateMutex(NULL, FALSE, NULL);
+    if (threadData.hMutex == NULL) {
+        PrintError(GetLastError(), _T("Erro em CreateMutex"));
+        CloseHandle(threadData.hEvents[1]);
         return 1;
     }
 
-    while (dadosMemoria->continuar && continuar) {
-        WaitForSingleObject(hEvent, INFINITE);
-        for (DWORD i = 0; i < (numEmpresas > dadosMemoria->numEmpresas ? dadosMemoria->numEmpresas : numEmpresas); ++i) {
-            _tprintf(_T("Nome: %s, Preço: %.2lf, Número de Ações: %u\n"), dadosMemoria->empresas[i].nome, dadosMemoria->empresas[i].preco, dadosMemoria->empresas[i].numDeAcao);
-        }
-        _tprintf(_T("\n \n \n \n %s \n \n \n"), dadosMemoria->continuar ? _T("") : _T("\t\tO SERVIDOR FOI FECHADO :("));
+    threadData.continua = TRUE;
+    threadData.numTop = N;
+
+    hThread = CreateThread(NULL, 0, ThreadRead, (LPVOID)&threadData, 0, &threadId);
+    if (hThread == NULL) {
+        PrintError(GetLastError(), _T("Erro ao lançar ThreadRead"));
+        return 1;
     }
 
-    CloseHandle(hThreadOutput);
-    UnmapViewOfFile(dadosMemoria);
-    CloseHandle(hMapFile);
-    CloseHandle(hEvent);
+    c = _gettchar();
+    
+    WaitForSingleObject(threadData.hMutex, INFINITE);
+    threadData.continua = FALSE;
+    ReleaseMutex(threadData.hMutex);
+
+    SetEvent(threadData.hEvents[0]);
+
+    WaitForSingleObject(hThread, INFINITE);
+
+    CloseHandle(hThread);
+
+    CloseHandle(threadData.hMutex);
+
+    CloseHandle(threadData.hEvents[1]);
+
+    CloseHandle(threadData.hEvents[0]);
+
     return 0;
 }

@@ -7,44 +7,63 @@
 
 #include "Utils.h"
 
-#define TAM_TEXT 200
-//#define NOME_FILE_MEMORY _T("DATAMEMORY.bin") // teste
-#define NUMERO_INICIAL_DE_USERES_EMPRESAS 5 // nao sei ja para que serve
-#define NUMERO_MAX_EMPRESAS_PASSAR_POR_MEMORIA_VIRTUAL 10
-#define NOME_DO_FILE_MEMORIA_VIRTUAL _T("memoriaVirtual") // nome do ficheiro virtual;
-#define NOME_DO_EVENTO_PARA_AVISAR_BOARD _T("eventoParaBoard") // nome do evento para avisar board teste;
+#define BIG_TEXT 200
+#define SMALL_TEXT 20
+
+// Macros
+#define _NCLIENTES _T("NCLIENTES")			
+#define FILE_EMPRESAS _T("empresas.txt")	// nome do ficheiro de emprecas 
+#define USERS_FILE _T("users.txt")			// nome do ficheiro de users 
+#define SHARED_MEMORY _T("SHARED_MEMORY")	// nome da memoria partilhada
+#define SHM_EVENT _T("SHM_EVENT")			// nome do evento que avisa a board
+#define SHM_MUTEX _T("SHM_MUTEX")			// nome do mutex utilizado pela bolsa e pela board
+#define SEMAPHORE _T("SEMAPHORE")
+
+// Valores Constantes
+#define NCLIENTES 5				// valor default para NCLIENTES 
+#define MAX_EMPRESAS 30			// numero maximo de empresas
+#define MAX_USERS 20			// numero maximo de users
+#define MAX_EMPRESAS_TO_SHM 10	// numero maximo de empresas a que passar para Shared Memory
+
+//|============================================================================|
+//|===============================| Estruturas |===============================|
+//|============================================================================|
 
 typedef struct {
 	int whatever;
 } TDATA;
 
-// Estrutura que representa uma empresa
+// Estrutura que representa uma Empresa
 typedef struct {
-	TCHAR nome[TAM_TEXT];
-	DWORD numDeAcao;
+	TCHAR nome[SMALL_TEXT];
+	DWORD numAcoes;
 	DOUBLE preco;
 } EMPRESA;
 
-// SharedMemory entre Bolsa e Board
+// Estrutura que representa a carteira do Cliente
 typedef struct {
-	DWORD numEmpresas;
-	EMPRESA empresas[NUMERO_MAX_EMPRESAS_PASSAR_POR_MEMORIA_VIRTUAL];
-	BOOL continuar;
-} SHM;
-
-typedef struct {
-	TCHAR nome[TAM_TEXT];
-	TCHAR pass[TAM_TEXT];
+	TCHAR empresas[MAX_EMPRESAS][SMALL_TEXT];	// array com os nomes empresas das quais este User possui acoes
+	DWORD acoes[MAX_EMPRESAS];					// acoes que possui de cada empresa
+	DWORD numEmpresas;							// numero de empresas das quais este User possui acoes
 	DOUBLE saldo;
- 	BOOL ligado;
+} CARTEIRA;
+
+// Estrutura que representa o Cliente
+typedef struct {
+	TCHAR nome[SMALL_TEXT];
+	TCHAR pass[SMALL_TEXT];
+	CARTEIRA carteira;
+	BOOL ligado;
 } USER;
 
+// SharedMemory entre Bolsa e Board
 typedef struct {
-	USER user;
-	TCHAR nomeEmpresas[NUMERO_INICIAL_DE_USERES_EMPRESAS][TAM_TEXT];
-	DWORD numDeAcoes[NUMERO_INICIAL_DE_USERES_EMPRESAS];
-	DWORD numEmpresasNaCarteira; // n.º de empresas das quais o User possui ações
-} CARTEIRA;
+	EMPRESA empresas[MAX_EMPRESAS_TO_SHM];
+} SHM;
+
+//|=========================================================================|
+//|===============================| Funções |===============================|
+//|=========================================================================|
 
 // Inicializa gerador de valores aleat�rios
 void InitRand();
@@ -66,7 +85,7 @@ DWORD PreencheThreadData(
 	const DWORD numThreads,
 	const TDATA example);
 
-// Lan�a as treads
+// Lanca as threads
 DWORD LancaThreads(
 	HANDLE* arrayThreadHandler,
 	TDATA* arrayThreadData,
@@ -95,3 +114,7 @@ void Print_LookUpTable(
 void PrintError(
 	const DWORD codigoErro,
 	const TCHAR* msg);
+
+void PrintUser(const USER user);
+
+void PrintEmpresa(const EMPRESA empresa);
