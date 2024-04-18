@@ -22,20 +22,20 @@ DWORD WINAPI ThreadRead(LPVOID data) {
 
     hMapFile = OpenFileMapping(FILE_MAP_READ, FALSE, SHARED_MEMORY);
     if (hMapFile == NULL) {
-        PrintError(GetLastError(), _T("Erro em OpenFileMapping"));
+        PrintErrorMsg(GetLastError(), _T("Erro em OpenFileMapping"));
         return 1;
     }
 
     sharedMemory = (SHM*)MapViewOfFile(hMapFile, FILE_MAP_READ, 0, 0, 0);
     if (sharedMemory == NULL) {
-        PrintError(GetLastError(), _T("Erro em MapViewOfFile"));
+        PrintErrorMsg(GetLastError(), _T("Erro em MapViewOfFile"));
         CloseHandle(hMapFile);
         return 1;
     }
 
     hMutex_SHM = OpenMutex(SYNCHRONIZE, FALSE, SHM_MUTEX);
     if (hMutex_SHM == NULL) {
-        PrintError(GetLastError(), _T("Erro em OpenMutex"));
+        PrintErrorMsg(GetLastError(), _T("Erro em OpenMutex"));
         CloseHandle(hMapFile);
         return 1;
     }
@@ -69,8 +69,6 @@ DWORD WINAPI ThreadRead(LPVOID data) {
             empresas[i] = sharedMemory->empresas[i];
         }
         ReleaseMutex(hMutex_SHM);
-
-        //qsort_s(empresas, MAX_EMPRESAS_TO_SHM, sizeof(EMPRESA), )
 
         PrintTop(empresas, numTop);
         _tprintf_s(_T("\n\nPrima ENTER para terminar..."));

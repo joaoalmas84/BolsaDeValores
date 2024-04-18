@@ -40,19 +40,19 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     threadData.hEvents[0] = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (threadData.hEvents[0] == NULL) {
-        PrintError(GetLastError(), _T("Erro em CreatEvent"));
+        PrintErrorMsg(GetLastError(), _T("Erro em CreatEvent"));
         return 1;
     }
 
     threadData.hEvents[1] = OpenEvent(SYNCHRONIZE, FALSE, SHM_EVENT);
     if (threadData.hEvents[1] == NULL) {
-        PrintError(GetLastError(), _T("Erro em OpenEvent"));
+        PrintErrorMsg(GetLastError(), _T("Erro em OpenEvent"));
         return 1;
     }
 
     threadData.hMutex = CreateMutex(NULL, FALSE, NULL);
     if (threadData.hMutex == NULL) {
-        PrintError(GetLastError(), _T("Erro em CreateMutex"));
+        PrintErrorMsg(GetLastError(), _T("Erro em CreateMutex"));
         CloseHandle(threadData.hEvents[1]);
         return 1;
     }
@@ -62,7 +62,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     hThread = CreateThread(NULL, 0, ThreadRead, (LPVOID)&threadData, 0, &threadId);
     if (hThread == NULL) {
-        PrintError(GetLastError(), _T("Erro ao lançar ThreadRead"));
+        PrintErrorMsg(GetLastError(), _T("Erro ao lançar ThreadRead"));
         return 1;
     }
 

@@ -11,18 +11,19 @@
 
 int _tmain(int argc, TCHAR* argv[]) {
 	int setmodeReturn;
-
-	DWORD numClients = -1;
 	TCHAR c;
 	
+	// numero maximo de clientes que podem estar ligados em simultaneo
+	DWORD nClientes;
+
 	// Semaforo que impede a existencia de mais que 1 processo bolsa em simultaneo
 	HANDLE hSem;
 
 	// Buffer para guardar mensagens de erro
-	TCHAR msg[TAM];
+	TCHAR msg[BIG_TEXT];
 
 	// Buffer para guardar o comando recebido
-	TCHAR input[TAM];
+	TCHAR input[SMALL_TEXT];
 
 	// Estrutura comando
 	CMD comando;
@@ -33,7 +34,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 	// Dados dos users 
 	USER users[MAX_USERS];
-	DWORD numUsers = 0; // número de carteiras existentes 
+	DWORD numUsers = 0; // número de users existentes 
 
 	// Variáveis relativas às Threads
 	TDATA_BOLSA threadData;
@@ -46,9 +47,9 @@ int _tmain(int argc, TCHAR* argv[]) {
 	setmodeReturn = _setmode(_fileno(stderr), _O_WTEXT);
 #endif 
 
-	hSem = CreateSemaphore(NULL, 1, 1, SEMAPHORE);
+	hSem = CreateSemaphore(NULL, 1, 1, SEM_BOLSA);
 	if (hSem == NULL) {
-		PrintError(GetLastError(), _T("Erro em CreateSemaphore"));
+		PrintErrorMsg(GetLastError(), _T("Erro em CreateSemaphore"));
 		return 1;
 	}
 
@@ -57,37 +58,44 @@ int _tmain(int argc, TCHAR* argv[]) {
 		return 1;
 	}
 
-	numClients = getNCLIENTES();
-	if (numClients < 0) { return -1; }
+	nClientes = getNCLIENTES();
+	if (nClientes < 0) { 
+		_tprintf_s(_T("\nValor da RegKey %s inválido!"), _NCLIENTES);
+		return 1; 
+	}
 
 	InitializeEmpresas(empresas);
 	InitializeUsers(users);
 
-	//LerEmpresasDoArquivo(empresas, &numDeEmpresas);
-	LerUsersDoArquivo(users, &numUsers);
+	if (!CarregaEmpresas(empresas, &numDeEmpresas, msg)) {
+		_tprintf_s(_T("%s"), msg);
+		return 1;
+	}
+
+	//CarregaUsers(users, &numUsers, msg);
 
 	threadData.continua = TRUE;
 	threadData.empresas = empresas;
 	threadData.numEmpresas = &numDeEmpresas;
-	threadData.clients = users;
-	threadData.numClients = &numClients;
+	threadData.users = users;
+	threadData.numUsers = &numUsers;
 
 	threadData.hEvent_Board = CreateEvent(NULL, TRUE, FALSE, NULL);
 	if (threadData.hEvent_Board == NULL) {
-		PrintError(GetLastError(), _T("Erro ao lançar CreateEvent"));
+		PrintErrorMsg(GetLastError(), _T("Erro ao lançar CreateEvent"));
 		return 1;
 	}
 
 	threadData.hMutex = CreateMutex(NULL, FALSE, NULL);
 	if (threadData.hEvent_Board == NULL) {
-		PrintError(GetLastError(), _T("Erro ao lançar CreateMutex"));
+		PrintErrorMsg(GetLastError(), _T("Erro ao lançar CreateMutex"));
 		return 1;
 	}
 
 	// Lançamento da ThreadBoard
 	hThread[0] = CreateThread(NULL, 0, ThreadBoard, (LPVOID)&threadData, 0, &threadId);
 	if (hThread[0] == NULL) {
-		PrintError(GetLastError(), _T("Erro ao lançar ThreadBoard"));
+		PrintErrorMsg(GetLastError(), _T("Erro ao lançar ThreadBoard"));
 		return 1;
 	}
 
@@ -103,8 +111,8 @@ int _tmain(int argc, TCHAR* argv[]) {
 		}
 	}
 
-	SalvarEmpresasNoArquivo(empresas, numDeEmpresas);
-	SalvarUsersNoArquivo(users, numUsers);
+	//SalvaEmpresas(empresas, numDeEmpresas);
+	//SalvaUsers(users, numUsers);
 
 	return 0;
 }

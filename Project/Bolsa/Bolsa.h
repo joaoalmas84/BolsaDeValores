@@ -10,13 +10,13 @@
 
 // Thread Data - Processo Bolsa
 typedef struct {
-	BOOL continua;
-	EMPRESA* empresas;
-	DWORD* numEmpresas;
-	USER* clients;
-	DWORD* numClients;
-	HANDLE hEvent_Board; // 0 -> EventExit; 1: EventBoard;
-	HANDLE hMutex;
+	BOOL continua;		
+	EMPRESA* empresas;	// Array de empresas registadas
+	DWORD* numEmpresas;	// Numero de empresas registadas
+	USER* users;		// Array de users registados (ou ligados... ainda nao sei)
+	DWORD* numUsers;	// Numero de users registados
+	HANDLE hEvent_Board;// Evento para avisar a Board de que a infirmacao foi atualizada
+	HANDLE hMutex;		
 } TDATA_BOLSA;
 
 //|=========================================================================|
@@ -33,13 +33,19 @@ DWORD WINAPI ThreadClient(LPVOID data);
 //|===============================| Comandos |===============================|
 //|==========================================================================|
 
-void ExecutaComando(const CMD comando, TDATA_BOLSA* threadData);
+void ExecutaComando(
+	const CMD comando, 
+	TDATA_BOLSA* threadData);
 
-void ADDC(const CMD comando, TDATA_BOLSA* threadData);
+void ADDC(
+	const CMD comando, 
+	TDATA_BOLSA* threadData);
 
 void LISTC(TDATA_BOLSA* threadData);
 
-void STOCK(const CMD comando, TDATA_BOLSA* threadData);
+void STOCK(
+	const CMD comando, 
+	TDATA_BOLSA* threadData);
 
 void USERS(TDATA_BOLSA* threadData);
 
@@ -51,13 +57,25 @@ void CLOSE(TDATA_BOLSA* threadData);
 //|===============================| Ficheiros de Dados |===============================|
 //|====================================================================================|
 
-void LerEmpresasDoArquivo(EMPRESA empresas[], DWORD* numEmpresas);
+BOOL CarregaEmpresas(
+	EMPRESA empresas[], 
+	DWORD* numEmpresas,
+	TCHAR* msg);
 
-void SalvarEmpresasNoArquivo(const EMPRESA empresas[], DWORD numEmpresas);
+BOOL SalvaEmpresas(
+	const EMPRESA empresas[], 
+	DWORD numEmpresas,
+	TCHAR* msg);
 
-void LerUsersDoArquivo(USER users[], DWORD* numUsers);
+BOOL CarregaUsers(
+	USER users[], 
+	DWORD* numUsers,
+	TCHAR* msg);
 
-void SalvarUsersNoArquivo(const USER users[], DWORD numUsers);
+BOOL SalvaUsers(
+	const USER users[],
+	DWORD numUsers,
+	TCHAR* msg);
 
 //|========================================================================|
 //|===============================| Outras |===============================|
@@ -65,8 +83,12 @@ void SalvarUsersNoArquivo(const USER users[], DWORD numUsers);
 
 DWORD getNCLIENTES();
 
+// Inicializa o array empresas com valores nulos
 void InitializeEmpresas(EMPRESA empresas[]);
 
+// Inicializa o array users com valores nulos
 void InitializeUsers(USER users[]);
 
-int compara_empresas(const void* a, const void* b);
+int compara_empresas(
+	const void* a, 
+	const void* b);

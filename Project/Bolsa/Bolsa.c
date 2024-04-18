@@ -22,27 +22,27 @@ DWORD WINAPI ThreadBoard(LPVOID data) {
 
 	hMap = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, sizeof(SHM), SHARED_MEMORY);
 	if (hMap == NULL) {
-		PrintError(GetLastError(), _T("Erro em CreateFileMapping"));
+		PrintErrorMsg(GetLastError(), _T("Erro em CreateFileMapping"));
 		return 0;
 	}
 
 	sharedMemory = (SHM*)MapViewOfFile(hMap, FILE_MAP_WRITE, 0, 0, 0);
 	if (sharedMemory == NULL) {
-		PrintError(GetLastError(), _T("Erro em MapViewOfFile"));
+		PrintErrorMsg(GetLastError(), _T("Erro em MapViewOfFile"));
 		CloseHandle(hMap);
 		return 0;
 	}
 
 	hMutex = CreateMutex(NULL, FALSE, SHM_MUTEX);
 	if (hMutex == NULL) {
-		PrintError(GetLastError(), _T("Erro em CreateMutex"));
+		PrintErrorMsg(GetLastError(), _T("Erro em CreateMutex"));
 		CloseHandle(hMap);
 		return 0;
 	}
 
 	hEvent = CreateEvent(NULL, TRUE, FALSE, SHM_EVENT);
 	if (hEvent == NULL) {
-		PrintError(GetLastError(), _T("Erro em CreateEvent"));
+		PrintErrorMsg(GetLastError(), _T("Erro em CreateEvent"));
 		return 1;
 	}
 
@@ -195,8 +195,8 @@ void STOCK(const CMD comando, TDATA_BOLSA* threadData) {
 
 void USERS(TDATA_BOLSA* threadData) {
 	WaitForSingleObject(threadData->hMutex, INFINITE);
-	for (DWORD i = 0; i < *threadData->numClients; i++) {
-		PrintUser(threadData->clients[i]);
+	for (DWORD i = 0; i < *threadData->numUsers; i++) {
+		PrintUser(threadData->users[i]);
 	}
 	ReleaseMutex(threadData->hMutex);
 }
@@ -216,107 +216,55 @@ void CLOSE(TDATA_BOLSA* threadData) {
 //|===============================| Ficheiros de Dados |===============================|
 //|====================================================================================|
 
-void LerEmpresasDoArquivo(EMPRESA empresas[], DWORD* numEmpresas) {
-	FILE* arquivo;
-	wchar_t linha[BIG_TEXT * 3]; // Tamanho m�ximo de uma linha no arquivo
-	wchar_t nome[SMALL_TEXT];
-	DWORD numAcoes;
-	DOUBLE preco;
+BOOL CarregaEmpresas(EMPRESA empresas[], DWORD* numEmpresas, TCHAR* msg) {
+	BOOL fileExists;
+	DWORD dwCreationDisposition;
 
-	if (_wfopen_s(&arquivo, FILE_EMPRESAS, _T("r, ccs=UTF-8")) != 0) {
-		_tprintf(_T("Erro ao abrir o arquivo.\n"));
-		return;
+	HANDLE hFile, hMap;
+
+	TCHAR* pStr;
+	TCHAR aux;
+
+	fileExists = CheckFileExistence(FILE_EMPRESAS, &dwCreationDisposition);
+
+	if (!fileExists) {
+		_tprintf_s(_T("\nFicheiro %s nao existe"), FILE_EMPRESAS);
+		msg = NULL;
+		return FALSE;
 	}
 
-	while (fgetws(linha, sizeof(linha), arquivo) != NULL) {
-		if (*numEmpresas >= MAX_EMPRESAS) {
-			_tprintf(_T("Número maximo de empresas atingido.\n"));
-			break;
-		}
-
-		if (_stscanf_s(linha, _T("%s %d %lf"), nome, BIG_TEXT - 1, &numAcoes, &preco) == 3) {
-			nome[_tcsclen(nome)] = '\0';
-			_tcscpy_s(empresas[*numEmpresas].nome, SMALL_TEXT, nome);
-			empresas[*numEmpresas].numAcoes = numAcoes;
-			empresas[*numEmpresas].preco = preco;
-			(*numEmpresas)++;
-
-		} else { _tprintf(_T("Erro ao ler a linha.\n")); }
+	hFile = CreateFile(FILE_EMPRESAS, GENERIC_READ | GENERIC_WRITE, 0, NULL, dwCreationDisposition, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (hFile == INVALID_HANDLE_VALUE) {
+		msg = ReturnErrorMsg(GetLastError(), _T("Erro em CreateFile"));
+		return FALSE;
 	}
 
-	qsort(empresas, *numEmpresas, sizeof(EMPRESA), compara_empresas);
+	hMap = CreateFileMapping(hFile, NULL, PAGE_READWRITE, 0, BIG_TEXT * sizeof(char), NULL);
+	if (hMap == NULL) {
+		msg = ReturnErrorMsg(GetLastError(), _T("Erro em CreateFileMapping"));
+		return FALSE;
+	}
 
-	fclose(arquivo);
+	pStr = (TCHAR*)MapViewOfFile(hMap, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, BIG_TEXT * sizeof(char));
+	if (pStr == NULL) {
+		msg = ReturnErrorMsg(GetLastError(), _T("Erro em MapViewOfFile"));
+		return FALSE;
+	}
+
+
+
 }
 
-void SalvarEmpresasNoArquivo(const EMPRESA empresas[], DWORD numEmpresas) {
-	FILE* arquivo;
-
-	if (_wfopen_s(&arquivo, FILE_EMPRESAS, _T("w, ccs=UTF-8")) != 0) {
-		_tprintf_s(_T("Erro ao abrir o arquivo para escrita.\n"));
-		return;
-	}
-
-	for (DWORD i = 0; i < numEmpresas; i++) {
-		fwprintf(arquivo, _T("%s %d %.2f\n"), empresas[i].nome, empresas[i].numAcoes, empresas[i].preco);
-	}
-
-	fclose(arquivo);
+BOOL SalvaEmpresas(const EMPRESA empresas[], DWORD numEmpresas, TCHAR* msg) {
+	return FALSE;
 }
 
-void LerUsersDoArquivo(USER users[], DWORD* numUsers) {
-	FILE* arquivo;
-	TCHAR linha[BIG_TEXT * 3];
-	TCHAR nome[SMALL_TEXT];
-	TCHAR pass[SMALL_TEXT];
-	DOUBLE saldo;
-
-	if (_wfopen_s(&arquivo, USERS_FILE, _T("r, ccs=UTF-8")) != 0) {
-		_tprintf(_T("Erro ao abrir o arquivo.\n"));
-		return;
-	}
-
-	while (fgetws(linha, sizeof(linha), arquivo) != NULL) {
-		if (*numUsers >= MAX_USERS) {
-			_tprintf_s(_T("Número maximo de useres atingido.\n"));
-			break;
-		}
-
-		if (_stscanf_s(linha, _T("%ls %ls %lf"), nome, SMALL_TEXT, pass, SMALL_TEXT, &saldo) == 3) {
-			
-			_tcscpy_s(users[*numUsers].nome, SMALL_TEXT, nome);
-			nome[_tcslen(nome)] = _T('\0');
-
-			_tcscpy_s(users[*numUsers].nome, SMALL_TEXT, pass);
-			pass[_tcslen(pass)] = _T('\0');
-
-
-			users[*numUsers].carteira.saldo = saldo;
-			users[*numUsers].carteira.numEmpresas = 0;
-			users[*numUsers].ligado = FALSE;
-			(*numUsers)++;
-		} else {
-			_tprintf_s(_T("Erro ao ler a linha.\n"));
-		}
-	}
-
-	fclose(arquivo);
+BOOL CarregaUsers(USER users[], DWORD* numUsers, TCHAR* msg) {
+	return FALSE;
 }
 
-void SalvarUsersNoArquivo(const USER users[], DWORD numUsers) {
-	FILE* arquivo;
-
-	if (_wfopen_s(&arquivo, USERS_FILE, _T("w, ccs=UTF-8")) != 0) {
-		_tprintf_s(_T("Erro ao abrir o arquivo para escrita.\n"));
-		return;
-	}
-
-	for (DWORD i = 0; i < numUsers; i++) {
-		fwprintf_s(arquivo, _T("%ls %ls %.2lf\n"), 
-			users[i].nome, users[i].pass, users[i].carteira.saldo);
-	}
-
-	fclose(arquivo);
+BOOL SalvaUsers(const USER users[], DWORD numUsers, TCHAR* msg) {
+	return FALSE;
 }
 
 //|========================================================================|
@@ -340,7 +288,7 @@ DWORD getNCLIENTES() {
 
 	if (RegCreateKeyEx(HKEY_CURRENT_USER, chave_completa, 0, NULL, 
 		REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &chave, &res) != ERROR_SUCCESS) {
-		PrintError(GetLastError(), _T("Erro no RegCreateKeyEx"));
+		PrintErrorMsg(GetLastError(), _T("Erro no RegCreateKeyEx"));
 		return -1;
 	}
 
@@ -357,7 +305,7 @@ DWORD getNCLIENTES() {
 				return value;
 
 			} else {
-				PrintError(GetLastError(), _T("Erro no RegQueryValueEx"));
+				PrintErrorMsg(GetLastError(), _T("Erro no RegQueryValueEx"));
 				RegCloseKey(chave);
 				return -1;
 			}
@@ -374,7 +322,7 @@ DWORD getNCLIENTES() {
 		setResult = RegSetValueEx(chave, _NCLIENTES, 0, REG_DWORD, (LPBYTE)(&AUX), sizeof(AUX));
 
 		if (setResult != ERROR_SUCCESS) {
-			PrintError(GetLastError(), _T("Erro no RegSetValueEx"));
+			PrintErrorMsg(GetLastError(), _T("Erro no RegSetValueEx"));
 			RegCloseKey(chave);
 			return -1;
 		}
