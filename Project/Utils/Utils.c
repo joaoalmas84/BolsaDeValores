@@ -46,6 +46,38 @@ void PrintEmpresa(const EMPRESA empresa) {
 	_tprintf_s(_T("%s"), buff);
 }
 
+BOOL IsInteger(const TCHAR* str) {
+	TCHAR* endPtr;
+	long value = _tcstol(str, &endPtr, 10);
+
+	if (str == endPtr || *endPtr != _T('\0')) { return FALSE; }
+	else { return TRUE; }
+}
+
+BOOL IsDouble(const TCHAR* str) {
+	TCHAR* endPtr;
+	double res;
+
+	res = _tcstod(str, &endPtr);
+
+	if (str == endPtr || *endPtr != '\0') { return FALSE; }
+	else { return TRUE; }
+}
+
+TCHAR* ToLowerString(const TCHAR* s) {
+	TCHAR* aux = malloc(sizeof(TCHAR) * (_tcslen(s)));
+	int i;
+
+	if (aux == NULL) { return NULL; }
+
+	for (i = 0; s[i] != '\0'; ++i) {
+		aux[i] = tolower(s[i]);
+	}
+	aux[i] = '\0';
+
+	return aux;
+}
+
 void InitRand() {
 	srand((unsigned)time(NULL));
 }

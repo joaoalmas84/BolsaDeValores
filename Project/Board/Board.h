@@ -3,13 +3,15 @@
 // Thread Data - Processo Board
 typedef struct {
 	BOOL continua;
-	DWORD numTop;
-	HANDLE hEvents[2]; // 0 -> Event(Reset Auto), 1 -> Event_SHM(Reset Manual)
+
+
+	HANDLE* hEvent_Exit; // -> Event(Reset Auto)
+	HANDLE hMutex_SHM;
 	HANDLE hMutex;
 } TDATA_BOARD;
 
-DWORD WINAPI ThreadRead(LPVOID data);
+DWORD WINAPI ThreadGetChar(LPVOID data);
 
-void PrintTop(EMPRESA empresas[], DWORD numTop);
+void PrintTop(const EMPRESA empresas[], DWORD numTop);
 
 

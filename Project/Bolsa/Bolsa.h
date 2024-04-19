@@ -37,9 +37,10 @@ void ExecutaComando(
 	const CMD comando, 
 	TDATA_BOLSA* threadData);
 
-void ADDC(
+BOOL ADDC(
 	const CMD comando, 
-	TDATA_BOLSA* threadData);
+	TDATA_BOLSA* threadData, 
+	TCHAR* mensagem);
 
 void LISTC(TDATA_BOLSA* threadData);
 
@@ -63,6 +64,11 @@ BOOL CarregaEmpresas(
 	TCHAR* errorMsg,
 	DWORD* codigoErro);
 
+BOOL ProcessaEmpresasDoFicheiro(
+	const TCHAR* txt,
+	EMPRESA empresas[],
+	DWORD* numEmpresas);
+
 BOOL SalvaEmpresas(
 	const EMPRESA empresas[],
 	DWORD numEmpresas,
@@ -85,12 +91,6 @@ BOOL SalvaUsers(
 //|========================================================================|
 
 DWORD getNCLIENTES();
-
-// Inicializa o array empresas com valores nulos
-void InitializeEmpresas(EMPRESA empresas[]);
-
-// Inicializa o array users com valores nulos
-void InitializeUsers(USER users[]);
 
 int compara_empresas(
 	const void* a, 

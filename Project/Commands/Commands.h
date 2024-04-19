@@ -4,14 +4,14 @@
 #include <tchar.h>
 
 #define N_COMANDOS 6
-#define TAM 200
+#define TAM 50
 
 // estrutura que guarda a informação do comando
 typedef struct {
 	TCHAR Nome[TAM];
 	DWORD NumArgs;
-	TCHAR Args[4][TAM];
 	DWORD Index;
+	TCHAR Args[4][TAM];
 } CMD;
 
 //|========================================================================================|
@@ -83,12 +83,3 @@ void GetArgs(
 
 // Limpa espacos a mais na frase
 void LimpaEspacos(TCHAR* frase);
-
-// Devolve uma string igual à passada por parâmetro mas toda em lowercase
-TCHAR* ToLowerString(const TCHAR* s);
-
-// Verifica se str é um inteiro
-BOOL IsInteger(const TCHAR* str);
-
-// Verifica se str é um float
-BOOL IsDouble(const TCHAR* str);

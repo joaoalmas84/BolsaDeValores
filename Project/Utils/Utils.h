@@ -14,6 +14,7 @@
 #define _NCLIENTES _T("NCLIENTES")			// nome da RegKey NCLIENTES
 #define FILE_EMPRESAS _T("empresas.txt")	// nome do ficheiro de emprecas 
 #define FILE_USERS _T("users.txt")			// nome do ficheiro de users 
+#define START_EVENT _T("START_EVENT")		// nome do evento que obriga a Board a esperar pela Bolsa 
 #define SHARED_MEMORY _T("SHARED_MEMORY")	// nome da memoria partilhada
 #define SHM_EVENT _T("SHM_EVENT")			// nome do evento que avisa a board
 #define SHM_MUTEX _T("SHM_MUTEX")			// nome do mutex utilizado pela bolsa e pela board
@@ -81,6 +82,15 @@ void PrintUser(const USER user);
 
 // Mostra no ecra toda a informacao relativa a empresa
 void PrintEmpresa(const EMPRESA empresa);
+
+// Verifica se str é um inteiro
+BOOL IsInteger(const TCHAR* str);
+
+// Verifica se str é um float
+BOOL IsDouble(const TCHAR* str);
+
+// Devolve uma string igual à passada por parâmetro mas toda em lowercase
+TCHAR* ToLowerString(const TCHAR* s);
 
 // APAGAR SE NAO FOR NECESSARIO
 // Inicializa gerador de valores aleatorios

@@ -7,85 +7,21 @@
 #include "Utils.h"
 #include "Board.h"
 
-DWORD WINAPI ThreadRead(LPVOID data) {
+DWORD WINAPI ThreadGetChar(LPVOID data) {
     TDATA_BOARD* ptd = (TDATA_BOARD*)data;
 
-    // Variaveis da SharedMemory
-    SHM* sharedMemory;
-    HANDLE hMapFile;
-    HANDLE hMutex_SHM;
-
-    // Variaveis locais
-    BOOL continua;
-    DWORD numTop;
-    EMPRESA empresas[MAX_EMPRESAS_TO_SHM];
-
-    hMapFile = OpenFileMapping(FILE_MAP_READ, FALSE, SHARED_MEMORY);
-    if (hMapFile == NULL) {
-        PrintErrorMsg(GetLastError(), _T("Erro em OpenFileMapping"));
-        return 1;
-    }
-
-    sharedMemory = (SHM*)MapViewOfFile(hMapFile, FILE_MAP_READ, 0, 0, 0);
-    if (sharedMemory == NULL) {
-        PrintErrorMsg(GetLastError(), _T("Erro em MapViewOfFile"));
-        CloseHandle(hMapFile);
-        return 1;
-    }
-
-    hMutex_SHM = OpenMutex(SYNCHRONIZE, FALSE, SHM_MUTEX);
-    if (hMutex_SHM == NULL) {
-        PrintErrorMsg(GetLastError(), _T("Erro em OpenMutex"));
-        CloseHandle(hMapFile);
-        return 1;
-    }
+    TCHAR c =  _gettchar();
 
     WaitForSingleObject(ptd->hMutex, INFINITE);
-    numTop = ptd->numTop;
+    ptd->continua = FALSE;
     ReleaseMutex(ptd->hMutex);
 
-    WaitForSingleObject(hMutex_SHM, INFINITE);
-    for (size_t i = 0; i < numTop; i++) {
-        empresas[i] = sharedMemory->empresas[i];
-    }
-    ReleaseMutex(hMutex_SHM);
-
-    PrintTop(empresas, numTop);
-    _tprintf_s(_T("\n\nPrima ENTER para terminar..."));
-
-    while (1) {
-        WaitForMultipleObjects(2, ptd->hEvents, FALSE, INFINITE);
-
-        system("cls");
-
-        WaitForSingleObject(ptd->hMutex, INFINITE);
-        continua = ptd->continua;
-        ReleaseMutex(ptd->hMutex);
-
-        if (!continua) { break; }
-
-        WaitForSingleObject(hMutex_SHM, INFINITE);
-        for (size_t i = 0; i < numTop; i++) {
-            empresas[i] = sharedMemory->empresas[i];
-        }
-        ReleaseMutex(hMutex_SHM);
-
-        PrintTop(empresas, numTop);
-        _tprintf_s(_T("\n\nPrima ENTER para terminar..."));
-    }
-
-    FlushViewOfFile(sharedMemory, 0);
-
-    UnmapViewOfFile(sharedMemory);
-
-    CloseHandle(hMutex_SHM);
-
-    CloseHandle(hMapFile);
+    SetEvent(ptd->hEvent_Exit);
 
     ExitThread(6);
 }
 
-void PrintTop(EMPRESA empresas[], DWORD numTop) {
+void PrintTop(const EMPRESA empresas[], DWORD numTop) {
     if (empresas[0].numAcoes == 0) { return; }
 
     _tprintf_s(_T("\nTOP %d \nEmpresas mais bem cotadas da bolsa"), numTop);

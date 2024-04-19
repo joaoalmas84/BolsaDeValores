@@ -11,6 +11,7 @@
 
 int _tmain(int argc, TCHAR* argv[]) {
 	int setmodeReturn;
+
 	TCHAR c;
 	
 	// Numero maximo de clientes que podem estar ligados em simultaneo
@@ -30,14 +31,6 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 	// Estrutura comando
 	CMD comando;
-
-	// Dados das empreas 
-	EMPRESA empresas[MAX_EMPRESAS];
-	DWORD numEmpresas = 0; // número de empresas existentes
-
-	// Dados dos users 
-	USER users[MAX_USERS];
-	DWORD numUsers = 0; // número de users existentes 
 
 	// Variáveis relativas às Threads
 	TDATA_BOLSA threadData;
@@ -67,30 +60,21 @@ int _tmain(int argc, TCHAR* argv[]) {
 		return 1; 
 	}
 
-	InitializeEmpresas(empresas);
-	InitializeUsers(users);
-
-	if (FileExists(FILE_EMPRESAS)) {
+	/*if (FileExists(FILE_EMPRESAS)) {
 		if (!CarregaEmpresas(empresas, &numEmpresas, errorMsg, &codigoErro)) {
 			PrintErrorMsg(codigoErro, errorMsg);
 			return 1;
 		}
 	}
 
-	exit(6);
-
 	if (FileExists(FILE_USERS)) {
 		if (!CarregaUsers(users, &numUsers, errorMsg, &codigoErro)) {
 			PrintErrorMsg(codigoErro, errorMsg);
 			return 1;
 		}
-	}
+	}*/
 
 	threadData.continua = TRUE;
-	threadData.empresas = empresas;
-	threadData.numEmpresas = &numEmpresas;
-	threadData.users = users;
-	threadData.numUsers = &numUsers;
 
 	threadData.hEvent_Board = CreateEvent(NULL, TRUE, FALSE, NULL);
 	if (threadData.hEvent_Board == NULL) {
@@ -125,6 +109,8 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 	//SalvaEmpresas(empresas, numEmpresas);
 	//SalvaUsers(users, numUsers);
+
+	CloseHandle(hSem);
 
 	return 0;
 }

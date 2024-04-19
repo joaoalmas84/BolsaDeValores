@@ -4,6 +4,7 @@
 
 #include "pch.h"
 #include "Commands.h"
+#include "Utils.h"
 
 //|========================================================================================|
 //|===============================| Validação dos comandos |===============================|
@@ -99,27 +100,34 @@ BOOL CheckNumArgs(const CMD cmd, const DWORD* arrayArgsComandos, TCHAR* msg) {
 }
 
 BOOL CheckArgsConsistency_Bolsa(const CMD cmd, TCHAR* msg) {
+
 	switch (cmd.Index) {
 	case 0:
-		if (IsInteger(cmd.Args[2]) && (IsDouble(cmd.Args[3]) || IsInteger(cmd.Args[2]))) { return TRUE; }
-		else {
-			_stprintf_s(msg, TAM, _T("No comando '%s' os argumentos n.º 2 e 3 são inteiros"), cmd.Nome);
-			return FALSE;
-		}
+		_stprintf_s(msg, TAM, _T("No comando '%s' os argumentos n.º 2 e 3 são valores numéricos maiores que 0."), cmd.Nome);
+
+		if (IsInteger(cmd.Args[2]) && (IsDouble(cmd.Args[3]) || IsInteger(cmd.Args[2])) ) { 
+			if (_ttoi(cmd.Args[2]) > 0 && _tcstod(cmd.Args[3], 0) > 0) { return TRUE; }
+			else { return FALSE; }
+		} else { return FALSE; }
+
 		break;
 	case 2:
-		if (IsInteger(cmd.Args[2]) || IsDouble(cmd.Args[2])) { return TRUE; }
-		else {
-			_stprintf_s(msg, TAM, _T("No comando '%s' o argumento n.º 2 é um inteiro"), cmd.Nome);
-			return FALSE;
-		}
+		_stprintf_s(msg, TAM, _T("No comando '%s' o argumento n.º 2 é um valor numérico maior que 0."), cmd.Nome);
+
+		if (IsInteger(cmd.Args[2]) || IsDouble(cmd.Args[2])) { 
+			if (_tcstod(cmd.Args[3], 0) > 0) { return TRUE; }
+			else { return FALSE; }
+		} else { return FALSE; }
+
 		break;
 	case 4:
-		if (IsInteger(cmd.Args[1])) { return TRUE; }
-		else {
-			_stprintf_s(msg, TAM, _T("No comando '%s' o argumento n.º 1 são inteiros"), cmd.Nome);
-			return FALSE;
-		}
+		_stprintf_s(msg, TAM, _T("No comando '%s' o argumento n.º 1 é um valor numérico inteiro maior que 0"), cmd.Nome);
+
+		if (IsInteger(cmd.Args[1])) { 
+			if (_ttoi(cmd.Args[1]) > 0) { return TRUE; }
+			else { return FALSE; }
+		} else { return FALSE; }
+
 		break;
 	default:
 		return TRUE;
@@ -131,12 +139,13 @@ BOOL CheckArgsConsistency_Cliente(const CMD cmd, TCHAR* msg) {
 	switch (cmd.Index) {
 	case 2:
 	case 3:
-	case 4:
-		if (IsInteger(cmd.Args[2])) { return TRUE; }
-		else {
-			_stprintf_s(msg, TAM, _T("No comando '%s' o argumento n.º 2 é um inteiro"), cmd.Nome);
-			return FALSE;
-		}
+		_stprintf_s(msg, TAM, _T("No comando '%s' o argumento n.º 2 é um inteiro"), cmd.Nome);
+
+		if (IsInteger(cmd.Args[2])) { 
+			if (_ttoi(cmd.Args[2]) > 0) { return TRUE; }
+			else { return FALSE; }
+		} else { return FALSE; }
+
 		break;
 	default:
 		return TRUE;
@@ -145,7 +154,7 @@ BOOL CheckArgsConsistency_Cliente(const CMD cmd, TCHAR* msg) {
 }
 
 //|========================================================================================|
-//|=================================| Funcoes auxiliares |=================================|
+//|=================================| Fun��es auxiliares |=================================|
 //|========================================================================================|
 
 void GetCmd(TCHAR* cmd) {
@@ -190,36 +199,4 @@ void LimpaEspacos(TCHAR* frase) {
 			i--;
 		}
 	}
-}
-
-TCHAR* ToLowerString(const TCHAR* s) {
-	TCHAR* aux = malloc(sizeof(TCHAR) * (_tcslen(s)));
-	int i;
-
-	if (aux == NULL) { return NULL; }
-
-	for (i = 0; s[i] != '\0'; ++i) {
-		aux[i] = tolower(s[i]);
-	}
-	aux[i] = '\0';
-
-	return aux;
-}
-
-BOOL IsInteger(const TCHAR* str) {
-	TCHAR* endPtr;
-	long value = _tcstol(str, &endPtr, 10);
-
-	if (str == endPtr || *endPtr != _T('\0')) { return FALSE; }
-	else { return TRUE; }
-}
-
-BOOL IsDouble(const TCHAR* str) {
-	TCHAR* endPtr;
-	double res;
-
-	res = _tcstod(str, &endPtr);
-
-	if (str == endPtr || *endPtr != '\0') { return FALSE; }
-	else { return TRUE; }
 }
