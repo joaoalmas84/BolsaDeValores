@@ -13,14 +13,17 @@ int _tmain(int argc, TCHAR* argv[]) {
 	int setmodeReturn;
 	TCHAR c;
 	
-	// numero maximo de clientes que podem estar ligados em simultaneo
+	// Numero maximo de clientes que podem estar ligados em simultaneo
 	DWORD nClientes;
 
 	// Semaforo que impede a existencia de mais que 1 processo bolsa em simultaneo
 	HANDLE hSem;
 
-	// Buffer para guardar mensagens de erro
-	TCHAR msg[BIG_TEXT];
+	// Buffer para guardar mensagens do developer em caso de erro
+	TCHAR errorMsg[BIG_TEXT];
+
+	// Variavel para guardar codigos de erro
+	DWORD codigoErro;
 
 	// Buffer para guardar o comando recebido
 	TCHAR input[SMALL_TEXT];
@@ -30,7 +33,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 	// Dados das empreas 
 	EMPRESA empresas[MAX_EMPRESAS];
-	DWORD numDeEmpresas = 0; // número de empresas existentes
+	DWORD numEmpresas = 0; // número de empresas existentes
 
 	// Dados dos users 
 	USER users[MAX_USERS];
@@ -67,16 +70,25 @@ int _tmain(int argc, TCHAR* argv[]) {
 	InitializeEmpresas(empresas);
 	InitializeUsers(users);
 
-	if (!CarregaEmpresas(empresas, &numDeEmpresas, msg)) {
-		_tprintf_s(_T("%s"), msg);
-		return 1;
+	if (FileExists(FILE_EMPRESAS)) {
+		if (!CarregaEmpresas(empresas, &numEmpresas, errorMsg, &codigoErro)) {
+			PrintErrorMsg(codigoErro, errorMsg);
+			return 1;
+		}
 	}
 
-	//CarregaUsers(users, &numUsers, msg);
+	exit(6);
+
+	if (FileExists(FILE_USERS)) {
+		if (!CarregaUsers(users, &numUsers, errorMsg, &codigoErro)) {
+			PrintErrorMsg(codigoErro, errorMsg);
+			return 1;
+		}
+	}
 
 	threadData.continua = TRUE;
 	threadData.empresas = empresas;
-	threadData.numEmpresas = &numDeEmpresas;
+	threadData.numEmpresas = &numEmpresas;
 	threadData.users = users;
 	threadData.numUsers = &numUsers;
 
@@ -103,15 +115,15 @@ int _tmain(int argc, TCHAR* argv[]) {
 		GetCmd(input);
 		c = _gettchar();
 
-		if (!ValidaCmd(input, &comando, msg, TRUE)) {
-			_tprintf(_T("\n[ERRO] %s."), msg);
+		if (!ValidaCmd(input, &comando, errorMsg, TRUE)) {
+			_tprintf(_T("\n[ERRO] %s."), errorMsg);
 		} else {
 			ExecutaComando(comando, &threadData);
 			if (comando.Index == 5) { break; }
 		}
 	}
 
-	//SalvaEmpresas(empresas, numDeEmpresas);
+	//SalvaEmpresas(empresas, numEmpresas);
 	//SalvaUsers(users, numUsers);
 
 	return 0;

@@ -7,13 +7,13 @@
 
 #include "Utils.h"
 
-#define BIG_TEXT 300	// Tamanho de buffer para textos
-#define SMALL_TEXT 50	// Tamanho de buffer para nomes
+#define BIG_TEXT 500	// Tamanho de buffer para textos
+#define SMALL_TEXT 100	// Tamanho de buffer para nomes
 
 // Macros
 #define _NCLIENTES _T("NCLIENTES")			// nome da RegKey NCLIENTES
 #define FILE_EMPRESAS _T("empresas.txt")	// nome do ficheiro de emprecas 
-#define USERS_FILE _T("users.txt")			// nome do ficheiro de users 
+#define FILE_USERS _T("users.txt")			// nome do ficheiro de users 
 #define SHARED_MEMORY _T("SHARED_MEMORY")	// nome da memoria partilhada
 #define SHM_EVENT _T("SHM_EVENT")			// nome do evento que avisa a board
 #define SHM_MUTEX _T("SHM_MUTEX")			// nome do mutex utilizado pela bolsa e pela board
@@ -66,24 +66,15 @@ typedef struct {
 //|===============================| Funções |===============================|
 //|=========================================================================|
 
-// file existe: dwCreationDisposition = OPEN_EXISTING && return TRUE 
-// file nao existe: dwCreationDisposition = CREATE_NEW && return FALSE  
-BOOL CheckFileExistence(
-	const LPCWSTR fileName,
-	DWORD* dwCreationDisposition);
+// file existe: return TRUE 
+// file nao existe: return FALSE  
+BOOL FileExists(const LPCWSTR fileName);
 
 // Recebe o codigo de erro, descodifica-o numa mensagem e mostra-a no ecra
 // Opcionalmente recebe tambem uma mensagem introduzida pelo user
 void PrintErrorMsg(
 	const DWORD codigoErro,
 	const TCHAR* msg);
-
-// Recebe o codigo de erro, descodifica-o numa mensagem e retorna essa mensagem 
-// Opcionalmente recebe tambem uma mensagem introduzida pelo user
-TCHAR* ReturnErrorMsg(
-	const DWORD codigoErro,
-	const TCHAR* msg);
-
 
 // Mostra no ecra toda a informacao relativa ao user
 void PrintUser(const USER user);

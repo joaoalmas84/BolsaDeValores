@@ -216,54 +216,63 @@ void CLOSE(TDATA_BOLSA* threadData) {
 //|===============================| Ficheiros de Dados |===============================|
 //|====================================================================================|
 
-BOOL CarregaEmpresas(EMPRESA empresas[], DWORD* numEmpresas, TCHAR* msg) {
-	BOOL fileExists;
-	DWORD dwCreationDisposition;
-
+BOOL CarregaEmpresas(EMPRESA empresas[], DWORD* numEmpresas, TCHAR* errorMsg, DWORD* codigoErro) {
 	HANDLE hFile, hMap;
+	TCHAR buff[BIG_TEXT];
+	char* pStr;
 
-	TCHAR* pStr;
-	TCHAR aux;
-
-	fileExists = CheckFileExistence(FILE_EMPRESAS, &dwCreationDisposition);
-
-	if (!fileExists) {
-		_tprintf_s(_T("\nFicheiro %s nao existe"), FILE_EMPRESAS);
-		msg = NULL;
-		return FALSE;
-	}
-
-	hFile = CreateFile(FILE_EMPRESAS, GENERIC_READ | GENERIC_WRITE, 0, NULL, dwCreationDisposition, FILE_ATTRIBUTE_NORMAL, NULL);
+	hFile = CreateFile(FILE_EMPRESAS, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hFile == INVALID_HANDLE_VALUE) {
-		msg = ReturnErrorMsg(GetLastError(), _T("Erro em CreateFile"));
+		*codigoErro = GetLastError();
+		_tcscpy_s(errorMsg, BIG_TEXT, _T("Erro em CreateFile"));
 		return FALSE;
 	}
 
 	hMap = CreateFileMapping(hFile, NULL, PAGE_READWRITE, 0, BIG_TEXT * sizeof(char), NULL);
 	if (hMap == NULL) {
-		msg = ReturnErrorMsg(GetLastError(), _T("Erro em CreateFileMapping"));
+		*codigoErro = GetLastError();
+		_tcscpy_s(errorMsg, BIG_TEXT, _T("Erro em CreateFileMapping"));
 		return FALSE;
 	}
 
-	pStr = (TCHAR*)MapViewOfFile(hMap, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, BIG_TEXT * sizeof(char));
+	pStr = (char*)MapViewOfFile(hMap, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, BIG_TEXT * sizeof(char));
 	if (pStr == NULL) {
-		msg = ReturnErrorMsg(GetLastError(), _T("Erro em MapViewOfFile"));
+		*codigoErro = GetLastError();
+		_tcscpy_s(errorMsg, BIG_TEXT, _T("Erro em MapViewOfFile"));
 		return FALSE;
 	}
 
+	//_tcscpy_s(buff, BIG_TEXT, _T(""));
 
+	if (MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, pStr, BIG_TEXT, buff, BIG_TEXT) == 0) {
+		*codigoErro = GetLastError();
+		_tcscpy_s(errorMsg, BIG_TEXT, _T("Erro em MapViewOfFile"));
+		return FALSE;
+	}
+	
+	_tprintf_s(_T("\nbuff: \n|%s|"), buff);
+	//buff[_tcslen(buff)] = _T('\0');
 
+	FlushViewOfFile(pStr, 0);
+
+	UnmapViewOfFile(pStr);
+
+	CloseHandle(hMap);
+
+	CloseHandle(hFile);
+
+	exit(0);
 }
 
-BOOL SalvaEmpresas(const EMPRESA empresas[], DWORD numEmpresas, TCHAR* msg) {
+BOOL SalvaEmpresas(const EMPRESA empresas[], DWORD numEmpresas, TCHAR* errorMsg, DWORD* codigoErro) {
 	return FALSE;
 }
 
-BOOL CarregaUsers(USER users[], DWORD* numUsers, TCHAR* msg) {
+BOOL CarregaUsers(USER users[], DWORD* numUsers, TCHAR* errorMsg, DWORD* codigoErro) {
 	return FALSE;
 }
 
-BOOL SalvaUsers(const USER users[], DWORD numUsers, TCHAR* msg) {
+BOOL SalvaUsers(const USER users[], DWORD numUsers, TCHAR* errorMsg) {
 	return FALSE;
 }
 

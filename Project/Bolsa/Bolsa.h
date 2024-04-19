@@ -60,17 +60,20 @@ void CLOSE(TDATA_BOLSA* threadData);
 BOOL CarregaEmpresas(
 	EMPRESA empresas[], 
 	DWORD* numEmpresas,
-	TCHAR* msg);
+	TCHAR* errorMsg,
+	DWORD* codigoErro);
 
 BOOL SalvaEmpresas(
-	const EMPRESA empresas[], 
+	const EMPRESA empresas[],
 	DWORD numEmpresas,
-	TCHAR* msg);
+	TCHAR* msg,
+	DWORD* codigoErro);
 
 BOOL CarregaUsers(
 	USER users[], 
 	DWORD* numUsers,
-	TCHAR* msg);
+	TCHAR* msg,
+	DWORD* codigoErro);
 
 BOOL SalvaUsers(
 	const USER users[],

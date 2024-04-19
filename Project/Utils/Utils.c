@@ -5,39 +5,20 @@
 #include "pch.h"
 #include "Utils.h"
 
-BOOL CheckFileExistence(const LPCWSTR fileName, DWORD* dwCreationDisposition) {
-	if (GetFileAttributes(fileName) == INVALID_FILE_ATTRIBUTES) {
-		*dwCreationDisposition = CREATE_NEW;
-		return FALSE;
-	} else {
-		*dwCreationDisposition = OPEN_EXISTING;
-		return TRUE;
-	}
+BOOL FileExists(const LPCWSTR fileName) {
+	return GetFileAttributes(fileName) != INVALID_FILE_ATTRIBUTES;
 }
 
 void PrintErrorMsg(const DWORD codigoErro, const TCHAR* msg) {
 	TCHAR erro[SMALL_TEXT];
 
 	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, codigoErro, LANG_USER_DEFAULT, erro, SMALL_TEXT, NULL);
+	
 	_tprintf_s(_T("\n[ERRO] %d - %s"), codigoErro, erro);
 
 	if (msg != NULL && _tccmp(msg, _T("")) != 0) {
 		_tprintf_s(_T("(%s)"), msg);
 	}
-}
-
-TCHAR* ReturnErrorMsg(const DWORD codigoErro, const TCHAR* msg) {
-	TCHAR erro[SMALL_TEXT];
-	TCHAR buff[BIG_TEXT];
-
-	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, codigoErro, LANG_USER_DEFAULT, erro, SMALL_TEXT, NULL);
-	_sntprintf_s(buff, BIG_TEXT, BIG_TEXT, _T("\n[ERRO] %d - %s"), codigoErro, erro);
-
-	if (msg != NULL && _tccmp(msg, _T("")) != 0) {
-		_tcscat_s(buff, BIG_TEXT, msg);
-	}
-
-	return buff;
 }
 
 void PrintUser(const USER user) {
