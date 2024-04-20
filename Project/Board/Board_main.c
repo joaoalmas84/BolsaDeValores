@@ -17,7 +17,6 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     EMPRESA empresas[10];
     BOOL continua = TRUE;
-    HANDLE hEvents[2]; // [0] Evento SHM(Reset Manual); [1] Evento Exit(Reset Atomatico)
 
     // Variáveis da Thread
     DWORD threadId;
@@ -55,26 +54,10 @@ int _tmain(int argc, TCHAR* argv[]) {
         return 1;
     }
 
-    hEvents[0] = OpenEvent(SYNCHRONIZE, FALSE, SHM_EVENT);
-    if (hEvents[0] == NULL) {
-        PrintErrorMsg(GetLastError(), _T("Erro em OpenEvent"));
-        CloseHandle(hMutex_SHM);
-        return 1;
-    }
-
-    hEvents[1] = CreateEvent(NULL, TRUE, FALSE, NULL);
-    if (hEvents[1] == NULL) {
-        PrintErrorMsg(GetLastError(), _T("Erro em CreateEvent"));
-        CloseHandle(hMutex_SHM);
-        CloseHandle(hEvents[0]);
-        return 1;
-    }
-
     hMap = OpenFileMapping(FILE_MAP_READ, FALSE, SHARED_MEMORY);
     if (hMap == NULL) {
         PrintErrorMsg(GetLastError(), _T("Erro em OpenFileMapping"));
         CloseHandle(hMutex_SHM);
-        CloseHandle(hEvents[0]);
         return 1;
     }
 
@@ -82,19 +65,31 @@ int _tmain(int argc, TCHAR* argv[]) {
     if (sharedMemory == NULL) {
         PrintErrorMsg(GetLastError(), _T("Erro em MapViewOfFile"));
         CloseHandle(hMutex_SHM);
-        CloseHandle(hEvents[0]);
         CloseHandle(hMap);
         return 1;
     }
 
     threadData.continua = TRUE;
-    threadData.hEvent_Exit = &hEvents[1];
+
+    threadData.hEvents[0] = OpenEvent(SYNCHRONIZE, FALSE, SHM_EVENT);
+    if (threadData.hEvents[0] == NULL) {
+        PrintErrorMsg(GetLastError(), _T("Erro em OpenEvent"));
+        CloseHandle(hMutex_SHM);
+        return 1;
+    }
+
+    threadData.hEvents[1] = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (threadData.hEvents[1] == NULL) {
+        PrintErrorMsg(GetLastError(), _T("Erro em CreateEvent"));
+        CloseHandle(hMutex_SHM);
+        CloseHandle(threadData.hEvents[0]);
+        return 1;
+    }
 
     threadData.hMutex = CreateMutex(NULL, FALSE, NULL);
     if (threadData.hMutex == NULL) {
         PrintErrorMsg(GetLastError(), _T("Erro em CreateMutex"));
         CloseHandle(hMutex_SHM);
-        CloseHandle(hEvents[0]);
         CloseHandle(hMap);
         return 1;
     }
@@ -103,7 +98,6 @@ int _tmain(int argc, TCHAR* argv[]) {
     if (hThread == NULL) {
         PrintErrorMsg(GetLastError(), _T("Erro ao lançar ThreadRead"));
         CloseHandle(hMutex_SHM);
-        CloseHandle(hEvents[0]);
         CloseHandle(hMap);
         CloseHandle(threadData.hMutex);
         return 1;
@@ -114,18 +108,20 @@ int _tmain(int argc, TCHAR* argv[]) {
     ReleaseMutex(hMutex_SHM);
 
     while (continua) {
+        system("cls");
+
         PrintTop(empresas, N);
         _tprintf_s(_T("\n\nPrima ENTER para terminar..."));
 
-        WaitForMultipleObjects(2, hEvents, FALSE, INFINITE);
-
-        system("cls");
+        WaitForMultipleObjects(2, threadData.hEvents, FALSE, INFINITE);
 
         WaitForSingleObject(threadData.hMutex, INFINITE);
         CopyMemory(empresas, sharedMemory->empresas, sizeof(EMPRESA) * 10);
         continua = threadData.continua;
         ReleaseMutex(threadData.hMutex);
     }
+
+    WaitForSingleObject(hThread, INFINITE);
 
     CloseHandle(hThread);
 
@@ -134,8 +130,6 @@ int _tmain(int argc, TCHAR* argv[]) {
     CloseHandle(threadData.hMutex);
 
     CloseHandle(hMap);
-
-    CloseHandle(hEvents[0]);
 
     CloseHandle(hMutex_SHM);
 

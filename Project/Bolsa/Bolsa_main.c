@@ -60,21 +60,35 @@ int _tmain(int argc, TCHAR* argv[]) {
 		return 1; 
 	}
 
-	/*if (FileExists(FILE_EMPRESAS)) {
-		if (!CarregaEmpresas(empresas, &numEmpresas, errorMsg, &codigoErro)) {
+	threadData.continua = TRUE;
+	threadData.numEmpresas = 0;
+	threadData.numUsers = 0;
+	
+	threadData.empresas = AlocaEmpresas();
+	if (threadData.empresas == NULL) {
+		_tprintf_s(_T("\nErro ao alocar memória"));
+		return 1;
+	}
+
+	threadData.users = AlocaUsers();
+	if (threadData.users == NULL) {
+		_tprintf_s(_T("\nErro ao alocar memória"));
+		return 1;
+	}
+
+	if (FileExists(FILE_EMPRESAS)) {
+		if (!CarregaEmpresas(threadData.empresas, &threadData.numEmpresas, errorMsg, &codigoErro)) {
 			PrintErrorMsg(codigoErro, errorMsg);
 			return 1;
 		}
 	}
 
-	if (FileExists(FILE_USERS)) {
-		if (!CarregaUsers(users, &numUsers, errorMsg, &codigoErro)) {
+	/*if (FileExists(FILE_USERS)) {
+		if (!CarregaUsers(threadData.users, &threadData.numUsers, errorMsg, &codigoErro)) {
 			PrintErrorMsg(codigoErro, errorMsg);
 			return 1;
 		}
 	}*/
-
-	threadData.continua = TRUE;
 
 	threadData.hEvent_Board = CreateEvent(NULL, TRUE, FALSE, NULL);
 	if (threadData.hEvent_Board == NULL) {
@@ -95,6 +109,8 @@ int _tmain(int argc, TCHAR* argv[]) {
 		return 1;
 	}
 
+	system("cls");
+
 	while (1) {
 		GetCmd(input);
 		c = _gettchar();
@@ -109,6 +125,16 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 	//SalvaEmpresas(empresas, numEmpresas);
 	//SalvaUsers(users, numUsers);
+
+	free(threadData.users);
+
+	free(threadData.empresas);
+
+	WaitForSingleObject(hThread[0], INFINITE);
+
+	CloseHandle(threadData.hMutex);
+
+	CloseHandle(threadData.hEvent_Board);
 
 	CloseHandle(hSem);
 

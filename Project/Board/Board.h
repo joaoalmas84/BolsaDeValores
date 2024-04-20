@@ -3,9 +3,7 @@
 // Thread Data - Processo Board
 typedef struct {
 	BOOL continua;
-
-
-	HANDLE* hEvent_Exit; // -> Event(Reset Auto)
+	HANDLE hEvents[2]; // [0] Evento SHM(Reset Manual); [1] Evento Exit(Reset Atomatico)
 	HANDLE hMutex_SHM;
 	HANDLE hMutex;
 } TDATA_BOARD;

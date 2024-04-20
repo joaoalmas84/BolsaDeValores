@@ -4,7 +4,7 @@
 #include <tchar.h>
 
 #define N_COMANDOS 6
-#define TAM 50
+#define TAM 100
 
 // estrutura que guarda a informação do comando
 typedef struct {

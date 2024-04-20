@@ -12,9 +12,9 @@
 typedef struct {
 	BOOL continua;		
 	EMPRESA* empresas;	// Array de empresas registadas
-	DWORD* numEmpresas;	// Numero de empresas registadas
+	DWORD numEmpresas;	// Numero de empresas registadas
 	USER* users;		// Array de users registados (ou ligados... ainda nao sei)
-	DWORD* numUsers;	// Numero de users registados
+	DWORD numUsers;	// Numero de users registados
 	HANDLE hEvent_Board;// Evento para avisar a Board de que a infirmacao foi atualizada
 	HANDLE hMutex;		
 } TDATA_BOLSA;
@@ -91,6 +91,14 @@ BOOL SalvaUsers(
 //|========================================================================|
 
 DWORD getNCLIENTES();
+
+EMPRESA* AlocaEmpresas();
+
+void InicializaEmpresas(EMPRESA* empresas);
+
+USER* AlocaUsers();
+
+void InicializaUsers(USER* users);
 
 int compara_empresas(
 	const void* a, 

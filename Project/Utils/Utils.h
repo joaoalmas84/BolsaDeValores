@@ -42,10 +42,14 @@ typedef struct {
 	DOUBLE preco;
 } EMPRESA;
 
+typedef struct {
+	TCHAR empresasNomes[MAX_EMPRESAS][SMALL_TEXT];	// array com os nomes empresas das quais este User possui acoes
+	DWORD acoes[MAX_EMPRESAS];					// acoes que possui de cada empresa
+} POSSE_EMPRESA;
+
 // Estrutura que representa a carteira do User
 typedef struct {
-	TCHAR empresas[MAX_EMPRESAS][SMALL_TEXT];	// array com os nomes empresas das quais este User possui acoes
-	DWORD acoes[MAX_EMPRESAS];					// acoes que possui de cada empresa
+	POSSE_EMPRESA posse_empresas[MAX_EMPRESAS];	// representacao simplista das empresas dentro da carteira
 	DWORD numEmpresas;							// numero de empresas das quais este User possui acoes
 	DOUBLE saldo;
 } CARTEIRA;
