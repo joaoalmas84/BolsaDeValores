@@ -66,13 +66,13 @@ int _tmain(int argc, TCHAR* argv[]) {
 	
 	threadData.empresas = AlocaEmpresas();
 	if (threadData.empresas == NULL) {
-		_tprintf_s(_T("\nErro ao alocar memória"));
+		_tprintf_s(_T("\nErro ao alocar memória para empresas."));
 		return 1;
 	}
 
 	threadData.users = AlocaUsers();
 	if (threadData.users == NULL) {
-		_tprintf_s(_T("\nErro ao alocar memória"));
+		_tprintf_s(_T("\nErro ao alocar memória para users."));
 		return 1;
 	}
 
@@ -82,6 +82,13 @@ int _tmain(int argc, TCHAR* argv[]) {
 			return 1;
 		}
 	}
+
+	_tprintf_s(_T("\nEmpresas do File:"));
+	for (DWORD i = 0; i < threadData.numEmpresas; i++) {
+		PrintEmpresa(threadData.empresas[i]);
+	}
+
+	exit(0);
 
 	/*if (FileExists(FILE_USERS)) {
 		if (!CarregaUsers(threadData.users, &threadData.numUsers, errorMsg, &codigoErro)) {

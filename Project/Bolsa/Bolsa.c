@@ -209,8 +209,9 @@ void CLOSE(TDATA_BOLSA* threadData) {
 //|====================================================================================|
 
 BOOL CarregaEmpresas(EMPRESA empresas[], DWORD* numEmpresas, TCHAR* errorMsg, DWORD* codigoErro) {
-	HANDLE hFile, hMap;
+	HANDLE hFile;
 	TCHAR buff[BIG_TEXT];
+	DWORD nbytes;
 
 	hFile = CreateFile(FILE_EMPRESAS, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hFile == INVALID_HANDLE_VALUE) {
@@ -219,29 +220,71 @@ BOOL CarregaEmpresas(EMPRESA empresas[], DWORD* numEmpresas, TCHAR* errorMsg, DW
 		return FALSE;
 	}
 
-	if (!ReadFile(hFile)) {
+	if (!ReadFile(hFile, buff, sizeof(buff), &nbytes, NULL)) {
+		*codigoErro = GetLastError();
+		_tcscpy_s(errorMsg, BIG_TEXT, _T("Erro em ReadFile"));
+		return FALSE;
+	}
+	buff[nbytes/sizeof(TCHAR)-1] = '\0';
 
+	for (DWORD i = 0; buff[i+1] != '\n'; i++) {
+		buff[i] = buff[i + 1];
 	}
 
+	if (!ProcessaEmpresasDoFicheiro(buff, empresas, numEmpresas)) {
+		_tcscpy_s(errorMsg, SMALL_TEXT, _T("\nErro em _stscanf_s"));
+		*codigoErro = -1;
+		return FALSE;
+	}
 
-	exit(0);
+	return TRUE;
 }
 
-BOOL ProcessaEmpresasDoFicheiro(const TCHAR* txt, EMPRESA empresas[], DWORD* numEmpresas) {
-	TCHAR* txtCopy;
-	TCHAR* nextToken = NULL;
+BOOL ProcessaEmpresasDoFicheiro(const TCHAR* buff, EMPRESA empresas[], DWORD* numEmpresas) {
+	TCHAR *buffCopy, *aux, *nextToken = NULL;
+	TCHAR line[SMALL_TEXT];
+	int res;
 
-	TCHAR buff[SMALL_TEXT];
+	buffCopy = _tcsdup(buff);
 
-	txtCopy = _tcsdup(txt);
+	aux = _tcstok_s(buffCopy, _T("\n"), &nextToken);
+	aux[_tcslen(aux) - 1] = '\0';
 
-	_tcscpy_s(buff, SMALL_TEXT, _tcstok_s(txtCopy, _T("\n"), &nextToken));
-	
-	_tprintf_s(_T("buff: '%s'"), buff);
+	_tcscpy_s(line, SMALL_TEXT, aux);
 
-	free(txtCopy);
+	res = _stscanf_s(line, _T("%s %d %lf"),
+		empresas[*numEmpresas].nome,
+		(unsigned)_countof(empresas[*numEmpresas].nome),
+		&empresas[*numEmpresas].numAcoes,
+		&empresas[*numEmpresas].preco);
 
-	exit(0);
+	if (res != 3) { return FALSE; }
+
+	(*numEmpresas)++;
+
+	while (1) {
+		aux = _tcstok_s(NULL, _T("\n"), &nextToken);
+
+		if (aux == NULL) { break; }
+
+		aux[_tcslen(aux) - 1] = '\0';
+
+		_tcscpy_s(line, SMALL_TEXT, aux);
+
+		res = _stscanf_s(line, _T("%s %d %lf"),
+			empresas[*numEmpresas].nome,
+			(unsigned)_countof(empresas[*numEmpresas].nome),
+			&empresas[*numEmpresas].numAcoes,
+			&empresas[*numEmpresas].preco);
+
+		if (res != 3) { return FALSE; }
+
+		(*numEmpresas)++;
+	} 
+
+	free(buffCopy);
+
+	return TRUE;
 }
 
 BOOL SalvaEmpresas(const EMPRESA empresas[], DWORD numEmpresas, TCHAR* errorMsg, DWORD* codigoErro) {

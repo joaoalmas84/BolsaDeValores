@@ -65,7 +65,7 @@ BOOL CarregaEmpresas(
 	DWORD* codigoErro);
 
 BOOL ProcessaEmpresasDoFicheiro(
-	const TCHAR* txt,
+	const TCHAR* buff,
 	EMPRESA empresas[],
 	DWORD* numEmpresas);
 

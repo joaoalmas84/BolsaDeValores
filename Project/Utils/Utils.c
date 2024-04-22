@@ -12,6 +12,11 @@ BOOL FileExists(const LPCWSTR fileName) {
 void PrintErrorMsg(const DWORD codigoErro, const TCHAR* msg) {
 	TCHAR erro[SMALL_TEXT];
 
+	if (codigoErro == -1) {
+		_tprintf_s(_T("\n[ERRO] %s"), msg);
+		return;
+	}
+
 	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, codigoErro, LANG_USER_DEFAULT, erro, SMALL_TEXT, NULL);
 	
 	_tprintf_s(_T("\n[ERRO] %d - %s"), codigoErro, erro);
@@ -34,15 +39,17 @@ void PrintUser(const USER user) {
 	_sntprintf_s(buff, BIG_TEXT, BIG_TEXT, _T("\nNome: %s\nEstado: %s\nSaldo: %f\nN.º de empresas: %d\n"),
 		user.nome, estado, user.carteira.saldo, user.carteira.numEmpresas);
 
+	_tprintf_s(_T("\n---------------------------------"));
 	_tprintf_s(_T("%s"), buff);
 }
 
 void PrintEmpresa(const EMPRESA empresa) {
 	TCHAR buff[BIG_TEXT];
 
-	_sntprintf_s(buff, BIG_TEXT, BIG_TEXT, _T("\nNome: %s\nN.º de ações para venda: %d\nPreço por ação: %.2f"),
+	_sntprintf_s(buff, BIG_TEXT, BIG_TEXT, _T("\nNome: %s\nN.º de ações para venda: %d\nPreço por ação: %.2f\n"),
 		empresa.nome, empresa.numAcoes, empresa.preco);
 
+	_tprintf_s(_T("\n---------------------------------"));
 	_tprintf_s(_T("%s"), buff);
 }
 
