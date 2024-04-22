@@ -16,7 +16,7 @@ DWORD WINAPI ThreadGetChar(LPVOID data) {
     ptd->continua = FALSE;
     ReleaseMutex(ptd->hMutex);
 
-    SetEvent(ptd->hEvents[1]);
+    SetEvent(ptd->hEvent_Exit);
 
     ExitThread(6);
 }

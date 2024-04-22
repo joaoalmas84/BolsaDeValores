@@ -27,6 +27,10 @@ int _tmain(int argc, TCHAR* argv[]) {
     SHM* sharedMemory;
     HANDLE hMap;
     HANDLE hMutex_SHM;
+    HANDLE hEvent_SHM; // Evento SHM(Reset Manual);
+
+    // Array de Eventos para o WaitForMultipleObjects()
+    HANDLE hEvents[2]; // [0]: Evento_SHM; [1]: Evento_Exit
     
 #ifdef UNICODE
     setmodeReturn = _setmode(_fileno(stdin), _O_WTEXT);
@@ -71,18 +75,18 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     threadData.continua = TRUE;
 
-    threadData.hEvents[0] = OpenEvent(SYNCHRONIZE, FALSE, SHM_EVENT);
-    if (threadData.hEvents[0] == NULL) {
+    hEvent_SHM = OpenEvent(SYNCHRONIZE, FALSE, SHM_EVENT);
+    if (hEvent_SHM == NULL) {
         PrintErrorMsg(GetLastError(), _T("Erro em OpenEvent"));
         CloseHandle(hMutex_SHM);
         return 1;
     }
 
-    threadData.hEvents[1] = CreateEvent(NULL, TRUE, FALSE, NULL);
-    if (threadData.hEvents[1] == NULL) {
+    threadData.hEvent_Exit = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (threadData.hEvent_Exit == NULL) {
         PrintErrorMsg(GetLastError(), _T("Erro em CreateEvent"));
         CloseHandle(hMutex_SHM);
-        CloseHandle(threadData.hEvents[0]);
+        CloseHandle(hEvent_SHM);
         return 1;
     }
 
@@ -107,13 +111,16 @@ int _tmain(int argc, TCHAR* argv[]) {
     CopyMemory(empresas, sharedMemory->empresas, N * sizeof(EMPRESA));
     ReleaseMutex(hMutex_SHM);
 
+    hEvents[0] = hEvent_SHM;
+    hEvents[1] = threadData.hEvent_Exit;
+
     while (continua) {
         system("cls");
 
         PrintTop(empresas, N);
         _tprintf_s(_T("\n\nPrima ENTER para terminar..."));
 
-        WaitForMultipleObjects(2, threadData.hEvents, FALSE, INFINITE);
+        WaitForMultipleObjects(2, hEvents, FALSE, INFINITE);
 
         WaitForSingleObject(threadData.hMutex, INFINITE);
         CopyMemory(empresas, sharedMemory->empresas, sizeof(EMPRESA) * 10);
