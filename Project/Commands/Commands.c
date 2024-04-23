@@ -154,12 +154,20 @@ BOOL CheckArgsConsistency_Cliente(const CMD cmd, TCHAR* msg) {
 }
 
 //|========================================================================================|
-//|=================================| Fun��es auxiliares |=================================|
+//|=================================| Funcoes auxiliares |=================================|
 //|========================================================================================|
 
-void GetCmd(TCHAR* cmd) {
+BOOL GetCmd(TCHAR* input) {
+	TCHAR c;	// Evitar o warning na funcao _gettchar();
+
+	_tcscpy_s(input, TAM, _T(""));
+
 	_tprintf_s(_T("\nComando -> "));
-	_tscanf_s(_T("%[^\n]"), cmd, TAM);
+	_tscanf_s(_T("%[^\n]"), input, TAM);
+	c = _gettchar();
+
+	return (_tcscmp(input, _T("")) == 0) ? FALSE : TRUE;
+
 }
 
 DWORD GetNumArgs(const TCHAR* cmd) {

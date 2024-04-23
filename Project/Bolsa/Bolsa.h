@@ -10,12 +10,15 @@
 
 // Thread Data - Processo Bolsa
 typedef struct {
-	BOOL continua;		
-	EMPRESA* empresas;	// Array de empresas registadas
-	DWORD numEmpresas;	// Numero de empresas registadas
-	USER* users;		// Array de users registados (ou ligados... ainda nao sei)
-	DWORD numUsers;	// Numero de users registados
-	HANDLE hEvent_Board;// Evento para avisar a Board de que a infirmacao foi atualizada
+	BOOL* continua;		// Ponteiro para a flag continua localizada na funcao main
+
+	EMPRESA* empresas;	// Ponteiro para o array de empresas localizado na funcao main
+	DWORD* numEmpresas;	// Ponteiro para o numero de empresas registadas localizado na funcao main
+	
+	USER* users;		// Ponteiro para o array de users localizado na função main
+	DWORD* numUsers;	// Ponteiro para o numero de users registadas localizado na funcao main
+
+	HANDLE hEvent_Board;// Evento para avisar a Board de que a informacao foi atualizada
 	HANDLE hMutex;		
 } TDATA_BOLSA;
 
@@ -69,22 +72,37 @@ BOOL ProcessaEmpresasDoFicheiro(
 	EMPRESA empresas[],
 	DWORD* numEmpresas);
 
+BOOL GetEmpresa(
+	const TCHAR* str, 
+	EMPRESA* empresa, 
+	DWORD* numEmpresas);
+
+BOOL CarregaUsers(
+	USER users[],
+	DWORD* numUsers,
+	TCHAR* errorMsg,
+	DWORD* codigoErro);
+
+BOOL ProcessaUsersDoFicheiro(
+	const TCHAR* buff,
+	USER users[],
+	DWORD* numUsers);
+
+BOOL GetUser(
+	const TCHAR* str,
+	USER* user,
+	DWORD* numUsers);
+
 BOOL SalvaEmpresas(
 	const EMPRESA empresas[],
 	DWORD numEmpresas,
-	TCHAR* msg,
-	DWORD* codigoErro);
-
-BOOL CarregaUsers(
-	USER users[], 
-	DWORD* numUsers,
-	TCHAR* msg,
+	TCHAR* errorMsg,
 	DWORD* codigoErro);
 
 BOOL SalvaUsers(
 	const USER users[],
 	DWORD numUsers,
-	TCHAR* msg);
+	TCHAR* errorMsg);
 
 //|========================================================================|
 //|===============================| Outras |===============================|
@@ -100,6 +118,6 @@ USER* AlocaUsers();
 
 void InicializaUsers(USER* users);
 
-int compara_empresas(
+int ComparaEmpresas(
 	const void* a, 
 	const void* b);

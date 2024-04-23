@@ -26,31 +26,25 @@ void PrintErrorMsg(const DWORD codigoErro, const TCHAR* msg) {
 	}
 }
 
-void PrintUser(const USER user) {
-	TCHAR buff[BIG_TEXT];
-	TCHAR estado[SMALL_TEXT];
-
-	if (user.ligado) {
-		_tcscpy_s(estado, SMALL_TEXT, _T("ligado"));
-	} else {
-		_tcscpy_s(estado, SMALL_TEXT, _T("desligado"));
+void PrintEmpresas(const EMPRESA empresas[], const DWORD numEmpresas) {
+	for (DWORD i = 0; i < numEmpresas; i++) {
+		_tprintf_s(_T("\n--------------------------------+"));
+		_tprintf_s(_T("\nNome: %s\nN.º de ações para venda: %d\nPreço por ação: %.2f\n"),
+		empresas[i].nome, empresas[i].numAcoes, empresas[i].preco);
 	}
-
-	_sntprintf_s(buff, BIG_TEXT, BIG_TEXT, _T("\nNome: %s\nEstado: %s\nSaldo: %f\nN.º de empresas: %d\n"),
-		user.nome, estado, user.carteira.saldo, user.carteira.numEmpresas);
-
-	_tprintf_s(_T("\n---------------------------------"));
-	_tprintf_s(_T("%s"), buff);
 }
 
-void PrintEmpresa(const EMPRESA empresa) {
-	TCHAR buff[BIG_TEXT];
+void PrintUsers(const USER users[], const DWORD numUsers) {
+	TCHAR estado[SMALL_TEXT];
 
-	_sntprintf_s(buff, BIG_TEXT, BIG_TEXT, _T("\nNome: %s\nN.º de ações para venda: %d\nPreço por ação: %.2f\n"),
-		empresa.nome, empresa.numAcoes, empresa.preco);
-
-	_tprintf_s(_T("\n---------------------------------"));
-	_tprintf_s(_T("%s"), buff);
+	for (DWORD i = 0; i < numUsers; i++) {
+		if (users[i].ligado) { _tcscpy_s(estado, SMALL_TEXT, _T("ligado")); }
+		else { _tcscpy_s(estado, SMALL_TEXT, _T("desligado")); }
+		
+		_tprintf_s(_T("\n--------------------------------+"));
+		_tprintf_s(_T("\nNome: %s\nPass: %s\nEstado: %s\nSaldo: %.2f\nN.º de empresas: %d\n"),
+		users[i].nome, users[i].pass, estado, users[i].carteira.saldo, users[i].carteira.numEmpresas);
+	}
 }
 
 BOOL IsInteger(const TCHAR* str) {

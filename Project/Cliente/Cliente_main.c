@@ -12,7 +12,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 	int setmodeReturn;
 
 	// Buffer para guardar mensagens de erro
-	TCHAR msg[TAM];
+	TCHAR errorMsg[TAM];
 
 	// Buffer para guardar o comando recebido
 	TCHAR input[TAM];
@@ -20,28 +20,24 @@ int _tmain(int argc, TCHAR* argv[]) {
 	// Estrutura comando
 	CMD comando;
 
-	TCHAR c;
-
 #ifdef UNICODE
 	setmodeReturn = _setmode(_fileno(stdin), _O_WTEXT);
 	setmodeReturn = _setmode(_fileno(stdout), _O_WTEXT);
 	setmodeReturn = _setmode(_fileno(stderr), _O_WTEXT);
 #endif 
 
-	while (1) {
-		GetCmd(input);
-		c = _gettchar();
+	system("cls");
 
-		if (!ValidaCmd(input, &comando, msg, FALSE)) {
-			_tprintf(_T("\n[ERRO] %s."), msg);
+	while (1) {
+		if (!GetCmd(input)) { continue; }
+
+		if (!ValidaCmd(input, &comando, errorMsg, TRUE)) {
+			_tprintf(_T("\n[ERRO] %s."), errorMsg);
 		} else {
 			ExecutaComando(comando);
-
 			if (comando.Index == 5) { break; }
 		}
-
 	}
-
 
 	return 0;
 }

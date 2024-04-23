@@ -15,7 +15,7 @@ int _tmain(int argc, TCHAR* argv[]) {
     // Numero de empresas a listar
     DWORD N;
 
-    EMPRESA empresas[10];
+    EMPRESA empresas[MAX_EMPRESAS_TO_SHM];
     BOOL continua = TRUE;
 
     // Variáveis da Thread
@@ -73,8 +73,6 @@ int _tmain(int argc, TCHAR* argv[]) {
         return 1;
     }
 
-    threadData.continua = TRUE;
-
     hEvent_SHM = OpenEvent(SYNCHRONIZE, FALSE, SHM_EVENT);
     if (hEvent_SHM == NULL) {
         PrintErrorMsg(GetLastError(), _T("Erro em OpenEvent"));
@@ -98,6 +96,8 @@ int _tmain(int argc, TCHAR* argv[]) {
         return 1;
     }
 
+    threadData.continua = &continua;
+
     hThread = CreateThread(NULL, 0, ThreadGetChar, (LPVOID)&threadData, 0, &threadId);
     if (hThread == NULL) {
         PrintErrorMsg(GetLastError(), _T("Erro ao lançar ThreadRead"));
@@ -108,7 +108,7 @@ int _tmain(int argc, TCHAR* argv[]) {
     }
 
     WaitForSingleObject(hMutex_SHM, INFINITE);
-    CopyMemory(empresas, sharedMemory->empresas, N * sizeof(EMPRESA));
+    CopyMemory(empresas, sharedMemory->empresas, sizeof(EMPRESA) * MAX_EMPRESAS_TO_SHM);
     ReleaseMutex(hMutex_SHM);
 
     hEvents[0] = hEvent_SHM;
@@ -123,8 +123,8 @@ int _tmain(int argc, TCHAR* argv[]) {
         WaitForMultipleObjects(2, hEvents, FALSE, INFINITE);
 
         WaitForSingleObject(threadData.hMutex, INFINITE);
-        CopyMemory(empresas, sharedMemory->empresas, sizeof(EMPRESA) * 10);
-        continua = threadData.continua;
+        CopyMemory(empresas, sharedMemory->empresas, sizeof(EMPRESA) * MAX_EMPRESAS_TO_SHM);
+        continua = *threadData.continua;
         ReleaseMutex(threadData.hMutex);
     }
 

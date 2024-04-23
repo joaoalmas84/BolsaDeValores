@@ -81,11 +81,11 @@ void PrintErrorMsg(
 	const DWORD codigoErro,
 	const TCHAR* msg);
 
-// Mostra no ecra toda a informacao relativa ao user
-void PrintUser(const USER user);
-
 // Mostra no ecra toda a informacao relativa a empresa
-void PrintEmpresa(const EMPRESA empresa);
+void PrintEmpresas(const EMPRESA empresas[], const DWORD numEmpresas);
+
+// Mostra no ecra toda a informacao relativa aos users
+void PrintUsers(const USER users[], const DWORD numUsers);
 
 // Verifica se str é um inteiro
 BOOL IsInteger(const TCHAR* str);

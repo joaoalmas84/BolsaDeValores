@@ -25,10 +25,5 @@ void PrintTop(const EMPRESA empresas[], DWORD numTop) {
     if (empresas[0].numAcoes == 0) { return; }
 
     _tprintf_s(_T("\nTOP %d \nEmpresas mais bem cotadas da bolsa"), numTop);
-    for (DWORD i = 0; i < numTop; i++) {
-        if (empresas[i].numAcoes > 0) {
-            _tprintf_s(_T("\n\n%d.º\n--------------------------------------"), i+1);
-            PrintEmpresa(empresas[i]);
-        }
-    }
+    PrintEmpresas(empresas, numTop);
 }

@@ -45,21 +45,24 @@ DWORD WINAPI ThreadBoard(LPVOID data) {
 	}
 
 	while (1) {
-		WaitForSingleObject(ptd->hEvent_Board, INFINITE);
-
 		WaitForSingleObject(ptd->hMutex, INFINITE);
-		continua = ptd->continua;
+		continua = *ptd->continua;
 		ReleaseMutex(ptd->hMutex);
 
 		if (!continua) { break; }
 
 		WaitForSingleObject(ptd->hMutex, INFINITE);
 		ZeroMemory(sharedMemory, sizeof(sharedMemory));
-		CopyMemory(sharedMemory->empresas, ptd->empresas, sizeof(EMPRESA)*ptd->numEmpresas);
+		CopyMemory(sharedMemory->empresas, ptd->empresas, sizeof(EMPRESA)*MAX_EMPRESAS_TO_SHM);
+		/*for (DWORD i = 0; i < MAX_EMPRESAS_TO_SHM; i++) {
+			sharedMemory->empresas[i] = ptd->empresas[i];
+		}*/
 		ReleaseMutex(ptd->hMutex);
 
 		SetEvent(hEvent);
 		ResetEvent(hEvent);
+
+		WaitForSingleObject(ptd->hEvent_Board, INFINITE);
 	}
 
 	FlushViewOfFile(sharedMemory, 0);
@@ -124,7 +127,7 @@ BOOL ADDC(const CMD comando, TDATA_BOLSA* threadData, TCHAR* mensagem) {
 	BOOL jaExiste = FALSE;
 
 	WaitForSingleObject(threadData->hMutex, INFINITE);
-	numEmpresas = (threadData->numEmpresas);
+	numEmpresas = *threadData->numEmpresas;
 	ReleaseMutex(threadData->hMutex);
 
 	if (numEmpresas >= MAX_EMPRESAS) {
@@ -150,7 +153,7 @@ BOOL ADDC(const CMD comando, TDATA_BOLSA* threadData, TCHAR* mensagem) {
 	threadData->empresas[numEmpresas].numAcoes = numAcoes;
 	threadData->empresas[numEmpresas].preco = preco;
 	_tcscpy_s(threadData->empresas[numEmpresas].nome, SMALL_TEXT, comando.Args[1]);
-	threadData->numEmpresas++;
+	(*threadData->numEmpresas)++;
 	ReleaseMutex(threadData->hMutex);
 
 	SetEvent(threadData->hEvent_Board);
@@ -161,35 +164,31 @@ BOOL ADDC(const CMD comando, TDATA_BOLSA* threadData, TCHAR* mensagem) {
 
 void LISTC(TDATA_BOLSA* threadData) {
 	WaitForSingleObject(threadData->hMutex, INFINITE);
-	for (DWORD i = 0; i < threadData->numEmpresas; i++) {
-		PrintEmpresa(threadData->empresas[i]);
-	}
+	PrintEmpresas(threadData->empresas, *threadData->numEmpresas);
 	ReleaseMutex(threadData->hMutex);
 }
 
 void STOCK(const CMD comando, TDATA_BOLSA* threadData) {
 	DOUBLE preco = _tcstod(comando.Args[2], NULL);
+	DWORD numEmpresas;
 
-	for (DWORD i = 0; i < threadData->numEmpresas; i++) {
+	WaitForSingleObject(threadData->hMutex, INFINITE);
+	numEmpresas = *threadData->numEmpresas;
+
+	for (DWORD i = 0; i < numEmpresas; i++) {
 		if (_tcscmp(threadData->empresas[i].nome, comando.Args[1]) == 0) {
-
-			WaitForSingleObject(threadData->hMutex, INFINITE);
 			threadData->empresas[i].preco = preco;
-			qsort(threadData->empresas, threadData->numEmpresas, sizeof(EMPRESA), compara_empresas);
-			ReleaseMutex(threadData->hMutex);
-
+			qsort(threadData->empresas, numEmpresas, sizeof(EMPRESA), ComparaEmpresas);
 			return;
 		}
 	}
-
+	ReleaseMutex(threadData->hMutex);
 	_tprintf(_T("O nome %s nao foi encontrado\n"), comando.Args[1]);
 }
 
 void USERS(TDATA_BOLSA* threadData) {
 	WaitForSingleObject(threadData->hMutex, INFINITE);
-	for (DWORD i = 0; i < threadData->numUsers; i++) {
-		PrintUser(threadData->users[i]);
-	}
+	PrintUsers(threadData->users, *threadData->numUsers);
 	ReleaseMutex(threadData->hMutex);
 }
 
@@ -213,7 +212,7 @@ BOOL CarregaEmpresas(EMPRESA empresas[], DWORD* numEmpresas, TCHAR* errorMsg, DW
 	TCHAR buff[BIG_TEXT];
 	DWORD nbytes;
 
-	hFile = CreateFile(FILE_EMPRESAS, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	hFile = CreateFile(FILE_EMPRESAS, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hFile == INVALID_HANDLE_VALUE) {
 		*codigoErro = GetLastError();
 		_tcscpy_s(errorMsg, BIG_TEXT, _T("Erro em CreateFile"));
@@ -225,7 +224,7 @@ BOOL CarregaEmpresas(EMPRESA empresas[], DWORD* numEmpresas, TCHAR* errorMsg, DW
 		_tcscpy_s(errorMsg, BIG_TEXT, _T("Erro em ReadFile"));
 		return FALSE;
 	}
-	buff[nbytes/sizeof(TCHAR)-1] = '\0';
+	buff[nbytes/sizeof(TCHAR)] = '\0';
 
 	for (DWORD i = 0; buff[i+1] != '\n'; i++) {
 		buff[i] = buff[i + 1];
@@ -241,45 +240,23 @@ BOOL CarregaEmpresas(EMPRESA empresas[], DWORD* numEmpresas, TCHAR* errorMsg, DW
 }
 
 BOOL ProcessaEmpresasDoFicheiro(const TCHAR* buff, EMPRESA empresas[], DWORD* numEmpresas) {
-	TCHAR *buffCopy, *aux, *nextToken = NULL;
-	TCHAR line[SMALL_TEXT];
-	int res;
+	TCHAR *buffCopy, *str, *nextToken = NULL;
 
 	buffCopy = _tcsdup(buff);
 
-	aux = _tcstok_s(buffCopy, _T("\n"), &nextToken);
-	aux[_tcslen(aux) - 1] = '\0';
+	str = _tcstok_s(buffCopy, _T("\n"), &nextToken);
+	str[_tcslen(str)] = '\0';
 
-	_tcscpy_s(line, SMALL_TEXT, aux);
-
-	res = _stscanf_s(line, _T("%s %d %lf"),
-		empresas[*numEmpresas].nome,
-		(unsigned)_countof(empresas[*numEmpresas].nome),
-		&empresas[*numEmpresas].numAcoes,
-		&empresas[*numEmpresas].preco);
-
-	if (res != 3) { return FALSE; }
-
-	(*numEmpresas)++;
+	if (!GetEmpresa(str, &empresas[*numEmpresas], numEmpresas)) { return FALSE; }
 
 	while (1) {
-		aux = _tcstok_s(NULL, _T("\n"), &nextToken);
+		str = _tcstok_s(NULL, _T("\n"), &nextToken);
 
-		if (aux == NULL) { break; }
+		if (str == NULL) { break; }
 
-		aux[_tcslen(aux) - 1] = '\0';
+		str[_tcslen(str)] = '\0';
 
-		_tcscpy_s(line, SMALL_TEXT, aux);
-
-		res = _stscanf_s(line, _T("%s %d %lf"),
-			empresas[*numEmpresas].nome,
-			(unsigned)_countof(empresas[*numEmpresas].nome),
-			&empresas[*numEmpresas].numAcoes,
-			&empresas[*numEmpresas].preco);
-
-		if (res != 3) { return FALSE; }
-
-		(*numEmpresas)++;
+		if (!GetEmpresa(str, &empresas[*numEmpresas], numEmpresas)) { return FALSE; }
 	} 
 
 	free(buffCopy);
@@ -287,11 +264,106 @@ BOOL ProcessaEmpresasDoFicheiro(const TCHAR* buff, EMPRESA empresas[], DWORD* nu
 	return TRUE;
 }
 
-BOOL SalvaEmpresas(const EMPRESA empresas[], DWORD numEmpresas, TCHAR* errorMsg, DWORD* codigoErro) {
-	return FALSE;
+BOOL GetEmpresa(const TCHAR* str, EMPRESA* empresa, DWORD* numEmpresas) {
+	TCHAR line[SMALL_TEXT];
+	int res;
+
+	_tcscpy_s(line, SMALL_TEXT, str);
+
+	res = _stscanf_s(line, _T("%s %d %lf"),
+		empresa->nome,
+		(unsigned)_countof(empresa->nome),
+		&empresa->numAcoes,
+		&empresa->preco);
+
+	if (res != 3) { return FALSE; }
+
+	(*numEmpresas)++;
+
+	return TRUE;
 }
 
 BOOL CarregaUsers(USER users[], DWORD* numUsers, TCHAR* errorMsg, DWORD* codigoErro) {
+	HANDLE hFile;
+	TCHAR buff[BIG_TEXT];
+	DWORD nbytes;
+
+	hFile = CreateFile(FILE_USERS, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (hFile == INVALID_HANDLE_VALUE) {
+		*codigoErro = GetLastError();
+		_tcscpy_s(errorMsg, BIG_TEXT, _T("Erro em CreateFile"));
+		return FALSE;
+	}
+
+	if (!ReadFile(hFile, buff, sizeof(buff), &nbytes, NULL)) {
+		*codigoErro = GetLastError();
+		_tcscpy_s(errorMsg, BIG_TEXT, _T("Erro em ReadFile"));
+		return FALSE;
+	}
+	buff[nbytes / sizeof(TCHAR)] = '\0';
+
+	for (DWORD i = 0; buff[i + 1] != '\n'; i++) {
+		buff[i] = buff[i + 1];
+	}
+
+	if (!ProcessaUsersDoFicheiro(buff, users, numUsers)) {
+		_tcscpy_s(errorMsg, SMALL_TEXT, _T("\nErro em _stscanf_s"));
+		*codigoErro = -1;
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+BOOL ProcessaUsersDoFicheiro(const TCHAR* buff, USER users[], DWORD* numUsers) {
+	TCHAR *buffCopy, *str, *nextToken = NULL;
+
+	buffCopy = _tcsdup(buff);
+
+	str = _tcstok_s(buffCopy, _T("\n"), &nextToken);
+	str[_tcslen(str)] = '\0';
+
+	if (!GetUser(str, &users[*numUsers], numUsers)) { return FALSE; }
+
+	while (1) {
+		str = _tcstok_s(NULL, _T("\n"), &nextToken);
+
+		if (str == NULL) { break; }
+
+		str[_tcslen(str)] = '\0';
+
+		if (!GetUser(str, &users[*numUsers], numUsers)) { return FALSE; }
+	}
+
+	free(buffCopy);
+
+	return TRUE;
+}
+
+BOOL GetUser(const TCHAR* str, USER* user, DWORD* numUsers) {
+	TCHAR line[SMALL_TEXT];
+	int res;
+
+	_tcscpy_s(line, SMALL_TEXT, str);
+
+	res = _stscanf_s(line, _T("%s %s %lf"),
+		user->nome,
+		(unsigned)_countof(user->nome),
+		&user->pass,
+		(unsigned)_countof(user->pass),
+		&user->carteira.saldo);
+
+	if (res != 3) { return FALSE; }
+
+	user->ligado = FALSE;
+	user->carteira.numEmpresas = 0;
+
+	(*numUsers)++;
+
+	return TRUE;
+}
+
+BOOL SalvaEmpresas(const EMPRESA empresas[], DWORD numEmpresas, TCHAR* errorMsg, DWORD* codigoErro) {
 	return FALSE;
 }
 
@@ -390,7 +462,7 @@ void InicializaUsers(USER* users) {
 	}
 }
 
-int compara_empresas(const void* a, const void* b) {
+int ComparaEmpresas(const void* a, const void* b) {
 	const EMPRESA* empresa1 = (const EMPRESA*)a;
 	const EMPRESA* empresa2 = (const EMPRESA*)b;
 

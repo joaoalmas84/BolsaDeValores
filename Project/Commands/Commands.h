@@ -70,7 +70,7 @@ BOOL CheckArgsConsistency_Cliente(
 //|========================================================================================|
 
 // Recebe o comando introduzido pelo utilizador e guarda-o na variável cmd
-void GetCmd(TCHAR* cmd);
+BOOL GetCmd(TCHAR* input);
 
 // Retorna quantos argumentos contém o cmd guardado na variável cmd
 DWORD GetNumArgs(const TCHAR* cmd);

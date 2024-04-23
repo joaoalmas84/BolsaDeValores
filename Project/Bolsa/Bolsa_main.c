@@ -10,32 +10,37 @@
 #include "Bolsa.h"
 
 int _tmain(int argc, TCHAR* argv[]) {
-	int setmodeReturn;
-
-	TCHAR c;
-	
-	// Numero maximo de clientes que podem estar ligados em simultaneo
-	DWORD nClientes;
+	int setmodeReturn;	// Evitar o warning da funcao setmode();
 
 	// Semaforo que impede a existencia de mais que 1 processo bolsa em simultaneo
 	HANDLE hSem;
 
-	// Buffer para guardar mensagens do developer em caso de erro
-	TCHAR errorMsg[BIG_TEXT];
+	// Numero maximo de clientes que podem estar ligados em simultaneo (RegKey NCLIENTES)
+	DWORD nClientes;
 
-	// Variavel para guardar codigos de erro
-	DWORD codigoErro;
+	// Array de empresas alocado dinamicamente para evitar exceder o limite da stack da função main
+	EMPRESA* empresas;		// O seu tamanho sera MAX_EMPRESAS
+	DWORD numEmpresas = 0;	// Numero de empresas registadas
 
-	// Buffer para guardar o comando recebido
-	TCHAR input[SMALL_TEXT];
+	// Array de users registados alocado dinamicamente para evitar exceder o limite da stack da função main
+	USER* users;		// O seu tamanho sera MAX_USERS
+	DWORD numUsers = 0; // Numero de users registados
 
-	// Estrutura comando
-	CMD comando;
+	// Flag para terminar as threads
+	BOOL continua = TRUE;				
 
 	// Variáveis relativas às Threads
 	TDATA_BOLSA threadData;
-	HANDLE hThread[3+MAX_USERS];
-	DWORD threadId;
+	HANDLE hThread[3 + MAX_USERS];
+	DWORD threadId[3 + MAX_USERS];
+
+	// Variaveis para lidar com casos de erro
+	TCHAR errorMsg[BIG_TEXT];	// Buffer para guardar mensagens do developer em caso de erro
+	DWORD codigoErro;			// Variavel para guardar codigos de erro
+
+	// Variaveis para lidar com os comandos
+	CMD comando;				// Estrutura comando
+	TCHAR input[SMALL_TEXT];	// Buffer para guardar o comando recebido
 
 #ifdef UNICODE
 	setmodeReturn = _setmode(_fileno(stdin), _O_WTEXT);
@@ -60,57 +65,54 @@ int _tmain(int argc, TCHAR* argv[]) {
 		return 1; 
 	}
 
-	threadData.continua = TRUE;
-	threadData.numEmpresas = 0;
-	threadData.numUsers = 0;
-	
-	threadData.empresas = AlocaEmpresas();
-	if (threadData.empresas == NULL) {
+	empresas = AlocaEmpresas();
+	if (empresas == NULL) {
 		_tprintf_s(_T("\nErro ao alocar memória para empresas."));
 		return 1;
 	}
 
-	threadData.users = AlocaUsers();
-	if (threadData.users == NULL) {
+	users = AlocaUsers();
+	if (users == NULL) {
 		_tprintf_s(_T("\nErro ao alocar memória para users."));
 		return 1;
 	}
 
-	if (FileExists(FILE_EMPRESAS)) {
-		if (!CarregaEmpresas(threadData.empresas, &threadData.numEmpresas, errorMsg, &codigoErro)) {
-			PrintErrorMsg(codigoErro, errorMsg);
-			return 1;
-		}
-	}
-
-	_tprintf_s(_T("\nEmpresas do File:"));
-	for (DWORD i = 0; i < threadData.numEmpresas; i++) {
-		PrintEmpresa(threadData.empresas[i]);
-	}
-
-	exit(0);
-
-	/*if (FileExists(FILE_USERS)) {
-		if (!CarregaUsers(threadData.users, &threadData.numUsers, errorMsg, &codigoErro)) {
-			PrintErrorMsg(codigoErro, errorMsg);
-			return 1;
-		}
-	}*/
+	threadData.continua = &continua;
+	threadData.empresas = empresas;
+	threadData.numEmpresas = &numEmpresas;
+	threadData.users = users;
+	threadData.numUsers = &numUsers;
 
 	threadData.hEvent_Board = CreateEvent(NULL, TRUE, FALSE, NULL);
 	if (threadData.hEvent_Board == NULL) {
-		PrintErrorMsg(GetLastError(), _T("Erro ao lançar CreateEvent"));
+		PrintErrorMsg(GetLastError(), _T("Erro em CreateEvent"));
 		return 1;
 	}
 
 	threadData.hMutex = CreateMutex(NULL, FALSE, NULL);
 	if (threadData.hEvent_Board == NULL) {
-		PrintErrorMsg(GetLastError(), _T("Erro ao lançar CreateMutex"));
+		PrintErrorMsg(GetLastError(), _T("Erro em CreateMutex"));
 		return 1;
 	}
 
-	// Lançamento da ThreadBoard
-	hThread[0] = CreateThread(NULL, 0, ThreadBoard, (LPVOID)&threadData, 0, &threadId);
+	if (FileExists(FILE_EMPRESAS)) {
+		if (!CarregaEmpresas(empresas, &numEmpresas, errorMsg, &codigoErro)) {
+			PrintErrorMsg(codigoErro, errorMsg);
+			return 1;
+		}
+	}
+
+	qsort(empresas, numEmpresas, sizeof(EMPRESA), ComparaEmpresas);
+
+	if (FileExists(FILE_USERS)) {
+		if (!CarregaUsers(users, &numUsers, errorMsg, &codigoErro)) {
+			PrintErrorMsg(codigoErro, errorMsg);
+			return 1;
+		}
+	}
+
+	// Lançamento da ThreadBoard 
+	hThread[0] = CreateThread(NULL, 0, ThreadBoard, (LPVOID)&threadData, 0, &threadId[0]);
 	if (hThread[0] == NULL) {
 		PrintErrorMsg(GetLastError(), _T("Erro ao lançar ThreadBoard"));
 		return 1;
@@ -119,8 +121,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 	system("cls");
 
 	while (1) {
-		GetCmd(input);
-		c = _gettchar();
+		if (!GetCmd(input)) { continue; }
 
 		if (!ValidaCmd(input, &comando, errorMsg, TRUE)) {
 			_tprintf(_T("\n[ERRO] %s."), errorMsg);
@@ -133,15 +134,15 @@ int _tmain(int argc, TCHAR* argv[]) {
 	//SalvaEmpresas(empresas, numEmpresas);
 	//SalvaUsers(users, numUsers);
 
-	free(threadData.users);
-
-	free(threadData.empresas);
-
 	WaitForSingleObject(hThread[0], INFINITE);
 
 	CloseHandle(threadData.hMutex);
 
 	CloseHandle(threadData.hEvent_Board);
+
+	free(users);
+
+	free(empresas);
 
 	CloseHandle(hSem);
 
