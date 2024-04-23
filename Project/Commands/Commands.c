@@ -37,8 +37,7 @@ BOOL ValidaCmd(const TCHAR* frase, CMD* comando, TCHAR* msg, BOOL bolsa) {
 		if (!CheckNumArgs(*comando, Args_Comandos_Bolsa, msg)) { return FALSE; }
 
 		if (!CheckArgsConsistency_Bolsa(*comando, msg)) { return FALSE; }
-	}
-	else {
+	} else {
 		if (!CheckName(*comando, Nomes_Comandos_Cliente, &comando->Index, msg)) { return FALSE; }
 
 		if (!CheckNumArgs(*comando, Args_Comandos_Cliente, msg)) { return FALSE; }
@@ -196,15 +195,17 @@ void GetArgs(const TCHAR* cmd, const DWORD numArgs, TCHAR args[][TAM]) {
 
 void LimpaEspacos(TCHAR* frase) {
 	size_t dim = _tcslen(frase);
+	DWORD i = 0;
 
-	for (DWORD i = 0; i < dim; ++i) {
-		if (isspace(frase[i]) && isspace(frase[i + 1])
-			|| isspace(frase[i]) && i == 0
-			|| isspace(frase[i]) && frase[i + 1] == _T('\0')) {
+	while (i < dim) {
+		if (_istspace(frase[i]) && _istspace(frase[i + 1])
+			|| _istspace(frase[i]) && i == 0
+			|| _istspace(frase[i]) && frase[i + 1] == _T('\0')) {
 			for (DWORD j = i; j < dim; ++j) {
 				frase[j] = frase[j + 1];
 			}
 			i--;
 		}
+		i++;
 	}
 }

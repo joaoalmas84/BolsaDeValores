@@ -29,8 +29,8 @@ void PrintErrorMsg(const DWORD codigoErro, const TCHAR* msg) {
 void PrintEmpresas(const EMPRESA empresas[], const DWORD numEmpresas) {
 	for (DWORD i = 0; i < numEmpresas; i++) {
 		_tprintf_s(_T("\n--------------------------------+"));
-		_tprintf_s(_T("\nNome: %s\nN.º de ações para venda: %d\nPreço por ação: %.2f\n"),
-		empresas[i].nome, empresas[i].numAcoes, empresas[i].preco);
+		_tprintf_s(_T("%d\nNome: '%s'\nN.º de ações para venda: %d\nPreço por ação: %.2f\n"),
+		i+1, empresas[i].nome, empresas[i].numAcoes, empresas[i].preco);
 	}
 }
 

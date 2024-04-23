@@ -57,15 +57,13 @@ void PAUSE();
 
 void CLOSE(TDATA_BOLSA* threadData);
 
-//|====================================================================================|
-//|===============================| Ficheiros de Dados |===============================|
-//|====================================================================================|
+//|===============================================================================================|
+//|===============================| Ficheiros de Dados - Empresas |===============================|
+//|===============================================================================================|
 
 BOOL CarregaEmpresas(
 	EMPRESA empresas[], 
-	DWORD* numEmpresas,
-	TCHAR* errorMsg,
-	DWORD* codigoErro);
+	DWORD* numEmpresas);
 
 BOOL ProcessaEmpresasDoFicheiro(
 	const TCHAR* buff,
@@ -77,11 +75,17 @@ BOOL GetEmpresa(
 	EMPRESA* empresa, 
 	DWORD* numEmpresas);
 
+BOOL SalvaEmpresas(
+	const EMPRESA empresas[],
+	const DWORD numEmpresas);
+
+//|============================================================================================|
+//|===============================| Ficheiros de Dados - Users |===============================|
+//|============================================================================================|
+
 BOOL CarregaUsers(
 	USER users[],
-	DWORD* numUsers,
-	TCHAR* errorMsg,
-	DWORD* codigoErro);
+	DWORD* numUsers);
 
 BOOL ProcessaUsersDoFicheiro(
 	const TCHAR* buff,
@@ -93,16 +97,9 @@ BOOL GetUser(
 	USER* user,
 	DWORD* numUsers);
 
-BOOL SalvaEmpresas(
-	const EMPRESA empresas[],
-	DWORD numEmpresas,
-	TCHAR* errorMsg,
-	DWORD* codigoErro);
-
 BOOL SalvaUsers(
 	const USER users[],
-	DWORD numUsers,
-	TCHAR* errorMsg);
+	const DWORD numUsers);
 
 //|========================================================================|
 //|===============================| Outras |===============================|

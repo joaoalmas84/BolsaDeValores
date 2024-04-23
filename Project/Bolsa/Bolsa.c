@@ -94,6 +94,7 @@ void ExecutaComando(const CMD comando, TDATA_BOLSA* threadData) {
 	for (DWORD i = 0; i < comando.NumArgs; i++) {
 		_tprintf_s(_T("'%s' "), comando.Args[i]);
 	}
+	_tprintf_s(_T("\n\n"));
 
 	switch (comando.Index) {
 		case 0:
@@ -153,7 +154,10 @@ BOOL ADDC(const CMD comando, TDATA_BOLSA* threadData, TCHAR* mensagem) {
 	threadData->empresas[numEmpresas].numAcoes = numAcoes;
 	threadData->empresas[numEmpresas].preco = preco;
 	_tcscpy_s(threadData->empresas[numEmpresas].nome, SMALL_TEXT, comando.Args[1]);
+	
 	(*threadData->numEmpresas)++;
+
+	qsort(threadData->empresas, *threadData->numEmpresas, sizeof(EMPRESA), ComparaEmpresas);
 	ReleaseMutex(threadData->hMutex);
 
 	SetEvent(threadData->hEvent_Board);
@@ -198,43 +202,40 @@ void PAUSE() {
 
 void CLOSE(TDATA_BOLSA* threadData) {
 	WaitForSingleObject(threadData->hMutex, INFINITE);
-	threadData->continua = FALSE;
+	*threadData->continua = FALSE;
 	ReleaseMutex(threadData->hMutex);
 	SetEvent(threadData->hEvent_Board);
 }
 
-//|====================================================================================|
-//|===============================| Ficheiros de Dados |===============================|
-//|====================================================================================|
+//|===============================================================================================|
+//|===============================| Ficheiros de Dados - Empresas |===============================|
+//|===============================================================================================|
 
-BOOL CarregaEmpresas(EMPRESA empresas[], DWORD* numEmpresas, TCHAR* errorMsg, DWORD* codigoErro) {
+BOOL CarregaEmpresas(EMPRESA empresas[], DWORD* numEmpresas) {
 	HANDLE hFile;
 	TCHAR buff[BIG_TEXT];
 	DWORD nbytes;
 
 	hFile = CreateFile(FILE_EMPRESAS, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hFile == INVALID_HANDLE_VALUE) {
-		*codigoErro = GetLastError();
-		_tcscpy_s(errorMsg, BIG_TEXT, _T("Erro em CreateFile"));
+		PrintErrorMsg(GetLastError(), _T("Erro em CreateFile"));
 		return FALSE;
 	}
 
 	if (!ReadFile(hFile, buff, sizeof(buff), &nbytes, NULL)) {
-		*codigoErro = GetLastError();
-		_tcscpy_s(errorMsg, BIG_TEXT, _T("Erro em ReadFile"));
+		PrintErrorMsg(GetLastError(), _T("Erro em ReadFile"));
+		CloseHandle(hFile);
 		return FALSE;
 	}
 	buff[nbytes/sizeof(TCHAR)] = '\0';
 
-	for (DWORD i = 0; buff[i+1] != '\n'; i++) {
-		buff[i] = buff[i + 1];
-	}
-
 	if (!ProcessaEmpresasDoFicheiro(buff, empresas, numEmpresas)) {
-		_tcscpy_s(errorMsg, SMALL_TEXT, _T("\nErro em _stscanf_s"));
-		*codigoErro = -1;
+		_tprintf_s(_T("\nErro em _stscanf_s"));
+		CloseHandle(hFile);
 		return FALSE;
 	}
+
+	CloseHandle(hFile);
 
 	return TRUE;
 }
@@ -283,21 +284,60 @@ BOOL GetEmpresa(const TCHAR* str, EMPRESA* empresa, DWORD* numEmpresas) {
 	return TRUE;
 }
 
-BOOL CarregaUsers(USER users[], DWORD* numUsers, TCHAR* errorMsg, DWORD* codigoErro) {
+BOOL SalvaEmpresas(const EMPRESA empresas[], const DWORD numEmpresas) {
+	HANDLE hFile;
+	TCHAR buff [SMALL_TEXT];
+	
+	DWORD nbytes, res;
+
+	hFile = CreateFile(FILE_EMPRESAS, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (hFile == INVALID_HANDLE_VALUE) {
+		PrintErrorMsg(GetLastError(), _T("Erro em CreateFile"));
+		return FALSE;
+	}
+
+	for (DWORD i = 0; i < numEmpresas; i++) {
+		res = _stprintf_s(buff, SMALL_TEXT, _T("%s %d %.2lf\n"),
+			empresas[i].nome, empresas[i].numAcoes, empresas[i].preco);
+
+		if (res == -1) {
+			CloseHandle(hFile);
+			return FALSE;
+		}
+
+		if (!WriteFile(hFile, buff, (DWORD)(_tcslen(buff) * sizeof(TCHAR)), &nbytes, NULL)) {
+			PrintErrorMsg(GetLastError(), _T("Erro em WriteFile"));
+			CloseHandle(hFile);
+			return FALSE;
+		}
+
+		//_tprintf_s(_T("\nEscrevi %d bytes (%d)"), nbytes, i+1);
+
+	}
+
+	CloseHandle(hFile);
+	
+	return TRUE;
+}
+
+//|============================================================================================|
+//|===============================| Ficheiros de Dados - Users |===============================|
+//|============================================================================================|
+
+BOOL CarregaUsers(USER users[], DWORD* numUsers) {
 	HANDLE hFile;
 	TCHAR buff[BIG_TEXT];
 	DWORD nbytes;
 
 	hFile = CreateFile(FILE_USERS, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hFile == INVALID_HANDLE_VALUE) {
-		*codigoErro = GetLastError();
-		_tcscpy_s(errorMsg, BIG_TEXT, _T("Erro em CreateFile"));
+		PrintErrorMsg(GetLastError(), _T("Erro em CreateFile"));
 		return FALSE;
 	}
 
 	if (!ReadFile(hFile, buff, sizeof(buff), &nbytes, NULL)) {
-		*codigoErro = GetLastError();
-		_tcscpy_s(errorMsg, BIG_TEXT, _T("Erro em ReadFile"));
+		PrintErrorMsg(GetLastError(), _T("Erro em ReadFile"));
+		CloseHandle(hFile);
 		return FALSE;
 	}
 	buff[nbytes / sizeof(TCHAR)] = '\0';
@@ -307,10 +347,12 @@ BOOL CarregaUsers(USER users[], DWORD* numUsers, TCHAR* errorMsg, DWORD* codigoE
 	}
 
 	if (!ProcessaUsersDoFicheiro(buff, users, numUsers)) {
-		_tcscpy_s(errorMsg, SMALL_TEXT, _T("\nErro em _stscanf_s"));
-		*codigoErro = -1;
+		PrintErrorMsg(GetLastError(), _T("\nErro em _stscanf_s"));
+		CloseHandle(hFile);
 		return FALSE;
 	}
+
+	CloseHandle(hFile);
 
 	return TRUE;
 }
@@ -327,7 +369,6 @@ BOOL ProcessaUsersDoFicheiro(const TCHAR* buff, USER users[], DWORD* numUsers) {
 
 	while (1) {
 		str = _tcstok_s(NULL, _T("\n"), &nextToken);
-
 		if (str == NULL) { break; }
 
 		str[_tcslen(str)] = '\0';
@@ -363,12 +404,40 @@ BOOL GetUser(const TCHAR* str, USER* user, DWORD* numUsers) {
 	return TRUE;
 }
 
-BOOL SalvaEmpresas(const EMPRESA empresas[], DWORD numEmpresas, TCHAR* errorMsg, DWORD* codigoErro) {
-	return FALSE;
-}
+BOOL SalvaUsers(const USER users[], const DWORD numUsers) {
+	HANDLE hFile;
+	TCHAR buff[SMALL_TEXT];
 
-BOOL SalvaUsers(const USER users[], DWORD numUsers, TCHAR* errorMsg) {
-	return FALSE;
+	DWORD nbytes, res;
+
+	hFile = CreateFile(FILE_USERS, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (hFile == INVALID_HANDLE_VALUE) {
+		PrintErrorMsg(GetLastError(), _T("Erro em CreateFile"));
+		return FALSE;
+	}
+
+	for (DWORD i = 0; i < numUsers; i++) {
+		res = _stprintf_s(buff, SMALL_TEXT, _T("%s %s %.2lf\n"),
+			users[i].nome, users[i].pass, users[i].carteira.saldo);
+
+		if (res == -1) {
+			CloseHandle(hFile);
+			return FALSE;
+		}
+
+		if (!WriteFile(hFile, buff, (DWORD)(_tcslen(buff) * sizeof(TCHAR)), &nbytes, NULL)) {
+			PrintErrorMsg(GetLastError(), _T("Erro em WriteFile"));
+			CloseHandle(hFile);
+			return FALSE;
+		}
+
+		//_tprintf_s(_T("\nEscrevi %d bytes (%d)"), nbytes, i + 1);
+
+	}
+
+	CloseHandle(hFile);
+
+	return TRUE;
 }
 
 //|========================================================================|

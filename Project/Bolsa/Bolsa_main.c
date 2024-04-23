@@ -35,8 +35,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 	DWORD threadId[3 + MAX_USERS];
 
 	// Variaveis para lidar com casos de erro
-	TCHAR errorMsg[BIG_TEXT];	// Buffer para guardar mensagens do developer em caso de erro
-	DWORD codigoErro;			// Variavel para guardar codigos de erro
+	TCHAR errorMsg[SMALL_TEXT];	// Buffer para guardar mensagens do developer em caso de erro
 
 	// Variaveis para lidar com os comandos
 	CMD comando;				// Estrutura comando
@@ -56,24 +55,28 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 	if (WaitForSingleObject(hSem, 100) == WAIT_TIMEOUT) {
 		_tprintf_s(_T("\nJá existe um processo Bolsa em execução."));
+		CloseHandle(hSem);
 		return 1;
 	}
 
 	nClientes = getNCLIENTES();
 	if (nClientes < 0) { 
 		_tprintf_s(_T("\nValor da RegKey %s inválido!"), _NCLIENTES);
+		CloseHandle(hSem);
 		return 1; 
 	}
 
 	empresas = AlocaEmpresas();
 	if (empresas == NULL) {
 		_tprintf_s(_T("\nErro ao alocar memória para empresas."));
+		CloseHandle(hSem);
 		return 1;
 	}
 
 	users = AlocaUsers();
 	if (users == NULL) {
 		_tprintf_s(_T("\nErro ao alocar memória para users."));
+		CloseHandle(hSem);
 		return 1;
 	}
 
@@ -86,18 +89,23 @@ int _tmain(int argc, TCHAR* argv[]) {
 	threadData.hEvent_Board = CreateEvent(NULL, TRUE, FALSE, NULL);
 	if (threadData.hEvent_Board == NULL) {
 		PrintErrorMsg(GetLastError(), _T("Erro em CreateEvent"));
+		CloseHandle(hSem);
 		return 1;
 	}
 
 	threadData.hMutex = CreateMutex(NULL, FALSE, NULL);
 	if (threadData.hEvent_Board == NULL) {
 		PrintErrorMsg(GetLastError(), _T("Erro em CreateMutex"));
+		CloseHandle(hSem);
 		return 1;
 	}
 
 	if (FileExists(FILE_EMPRESAS)) {
-		if (!CarregaEmpresas(empresas, &numEmpresas, errorMsg, &codigoErro)) {
-			PrintErrorMsg(codigoErro, errorMsg);
+		if (!CarregaEmpresas(empresas, &numEmpresas)) {		
+			_tprintf_s(_T("\n(Função CarregaEmpresas)"));
+			CloseHandle(hSem);
+			CloseHandle(threadData.hEvent_Board);
+			CloseHandle(threadData.hMutex);
 			return 1;
 		}
 	}
@@ -105,9 +113,12 @@ int _tmain(int argc, TCHAR* argv[]) {
 	qsort(empresas, numEmpresas, sizeof(EMPRESA), ComparaEmpresas);
 
 	if (FileExists(FILE_USERS)) {
-		if (!CarregaUsers(users, &numUsers, errorMsg, &codigoErro)) {
-			PrintErrorMsg(codigoErro, errorMsg);
-			return 1;
+		if (!CarregaUsers(users, &numUsers)) {
+			_tprintf_s(_T("\n(Função CarregaUsers)"));
+			CloseHandle(hSem);
+			CloseHandle(threadData.hEvent_Board);
+			CloseHandle(threadData.hMutex);
+			return 1; 
 		}
 	}
 
@@ -115,6 +126,11 @@ int _tmain(int argc, TCHAR* argv[]) {
 	hThread[0] = CreateThread(NULL, 0, ThreadBoard, (LPVOID)&threadData, 0, &threadId[0]);
 	if (hThread[0] == NULL) {
 		PrintErrorMsg(GetLastError(), _T("Erro ao lançar ThreadBoard"));
+		CloseHandle(hSem);
+		CloseHandle(threadData.hEvent_Board);
+		CloseHandle(threadData.hMutex);
+		free(users);
+		free(empresas);
 		return 1;
 	}
 
@@ -124,17 +140,34 @@ int _tmain(int argc, TCHAR* argv[]) {
 		if (!GetCmd(input)) { continue; }
 
 		if (!ValidaCmd(input, &comando, errorMsg, TRUE)) {
-			_tprintf(_T("\n[ERRO] %s."), errorMsg);
+			_tprintf(_T("\n[ERRO]: '%s'."), errorMsg);
 		} else {
 			ExecutaComando(comando, &threadData);
 			if (comando.Index == 5) { break; }
 		}
 	}
 
-	//SalvaEmpresas(empresas, numEmpresas);
-	//SalvaUsers(users, numUsers);
-
 	WaitForSingleObject(hThread[0], INFINITE);
+
+	if (!SalvaEmpresas(empresas, numEmpresas)) {
+		_tprintf_s(_T("\n(Função SalvaEmpresas)"));
+		CloseHandle(hSem);
+		CloseHandle(threadData.hMutex);
+		CloseHandle(threadData.hEvent_Board);
+		free(users);
+		free(empresas);
+		return 1;
+	}
+
+	if (!SalvaUsers(users, numUsers)) {
+		_tprintf_s(_T("\n(Função SalvaUsers)"));
+		CloseHandle(hSem);
+		CloseHandle(threadData.hMutex);
+		CloseHandle(threadData.hEvent_Board);
+		free(users);
+		free(empresas);
+		return 1;
+	}
 
 	CloseHandle(threadData.hMutex);
 
