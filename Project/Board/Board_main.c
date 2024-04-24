@@ -21,6 +21,7 @@ int _tmain(int argc, TCHAR* argv[]) {
     DWORD threadId;
     HANDLE hThread;
     TDATA_BOARD threadData;
+    CRITICAL_SECTION cs;
 
     // Variaveis da SharedMemory
     SHM* sharedMemory;
@@ -52,7 +53,7 @@ int _tmain(int argc, TCHAR* argv[]) {
         if (codigoErro == ERROR_FILE_NOT_FOUND) {
             _tprintf_s(_T("\nO programa Bolsa ainda não se encontra em execução."));
         } else {
-            PrintErrorMsg(GetLastError(), _T("Erro em OpenMutex."));
+            PrintErrorMsg(codigoErro, _T("Erro em OpenMutex."));
         }
         return 1;
     }
@@ -76,33 +77,36 @@ int _tmain(int argc, TCHAR* argv[]) {
     if (hEvent_SHM == NULL) {
         PrintErrorMsg(GetLastError(), _T("Erro em OpenEvent"));
         CloseHandle(hMutex_SHM);
-        return 1;
-    }
-
-    threadData.hEvent_Exit = CreateEvent(NULL, TRUE, FALSE, NULL);
-    if (threadData.hEvent_Exit == NULL) {
-        PrintErrorMsg(GetLastError(), _T("Erro em CreateEvent"));
-        CloseHandle(hMutex_SHM);
-        CloseHandle(hEvent_SHM);
-        return 1;
-    }
-
-    threadData.hMutex = CreateMutex(NULL, FALSE, NULL);
-    if (threadData.hMutex == NULL) {
-        PrintErrorMsg(GetLastError(), _T("Erro em CreateMutex"));
-        CloseHandle(hMutex_SHM);
         CloseHandle(hMap);
         return 1;
     }
 
+    if (!InitializeCriticalSectionAndSpinCount(&cs, 0)) {
+        PrintErrorMsg(GetLastError(), _T("Erro em InitializeCriticalSectionAndSpinCount"));
+        CloseHandle(hMutex_SHM);
+        CloseHandle(hEvent_SHM);
+        CloseHandle(hMap);
+        return 1;
+    }
+
+    threadData.pCs = &cs;
     threadData.continua = &continua;
+
+    threadData.hEvent_Exit = CreateEvent(NULL, FALSE, FALSE, NULL);
+    if (threadData.hEvent_Exit == NULL) {
+        PrintErrorMsg(GetLastError(), _T("Erro em CreateEvent"));
+        CloseHandle(hMutex_SHM);
+        CloseHandle(hEvent_SHM);
+        CloseHandle(hMap);
+        return 1;
+    }
 
     hThread = CreateThread(NULL, 0, ThreadGetChar, (LPVOID)&threadData, 0, &threadId);
     if (hThread == NULL) {
         PrintErrorMsg(GetLastError(), _T("Erro ao lançar ThreadRead"));
         CloseHandle(hMutex_SHM);
+        CloseHandle(hEvent_SHM);
         CloseHandle(hMap);
-        CloseHandle(threadData.hMutex);
         return 1;
     }
 
@@ -121,19 +125,19 @@ int _tmain(int argc, TCHAR* argv[]) {
 
         WaitForMultipleObjects(2, hEvents, FALSE, INFINITE);
 
-        WaitForSingleObject(threadData.hMutex, INFINITE);
+        EnterCriticalSection(&cs);
         CopyMemory(empresas, sharedMemory->empresas, sizeof(EMPRESA) * MAX_EMPRESAS_TO_SHM);
         continua = *threadData.continua;
-        ReleaseMutex(threadData.hMutex);
+        LeaveCriticalSection(&cs);
     }
 
     WaitForSingleObject(hThread, INFINITE);
 
     CloseHandle(hThread);
 
-    FlushViewOfFile(sharedMemory, 0);
+    DeleteCriticalSection(&cs);
 
-    CloseHandle(threadData.hMutex);
+    FlushViewOfFile(sharedMemory, 0);
 
     CloseHandle(hMap);
 

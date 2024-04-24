@@ -12,11 +12,12 @@ DWORD WINAPI ThreadGetChar(LPVOID data) {
 
     TCHAR c =  _gettchar();
 
-    WaitForSingleObject(ptd->hMutex, INFINITE);
+    EnterCriticalSection(ptd->pCs);
     ptd->continua = FALSE;
-    ReleaseMutex(ptd->hMutex);
+    LeaveCriticalSection(ptd->pCs);
 
     SetEvent(ptd->hEvent_Exit);
+    ResetEvent(ptd->hEvent_Exit);
 
     ExitThread(6);
 }

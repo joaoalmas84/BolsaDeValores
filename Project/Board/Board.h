@@ -3,10 +3,9 @@
 // Thread Data - Processo Board
 typedef struct {
 	BOOL* continua;
-
-	HANDLE hEvent_Exit; // Evento Exit(Reset Atomatico)
+	CRITICAL_SECTION* pCs;
+	HANDLE hEvent_Exit; // Evento Exit (Reset Atomatico)
 	HANDLE hMutex_SHM;
-	HANDLE hMutex;
 } TDATA_BOARD;
 
 DWORD WINAPI ThreadGetChar(LPVOID data);

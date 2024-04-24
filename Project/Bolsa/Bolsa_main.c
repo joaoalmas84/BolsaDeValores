@@ -33,6 +33,8 @@ int _tmain(int argc, TCHAR* argv[]) {
 	TDATA_BOLSA threadData;
 	HANDLE hThread[3 + MAX_USERS];
 	DWORD threadId[3 + MAX_USERS];
+	HANDLE hEventBoard;	// Evento para avisar a Board de que a informacao foi atualizada
+	CRITICAL_SECTION cs;// Critical Section para proteger alteracoes feitas a estrutura TDATA_BOLSA
 
 	// Variaveis para lidar com casos de erro
 	TCHAR errorMsg[SMALL_TEXT];	// Buffer para guardar mensagens do developer em caso de erro
@@ -60,15 +62,31 @@ int _tmain(int argc, TCHAR* argv[]) {
 	}
 
 	nClientes = getNCLIENTES();
-	if (nClientes < 0) { 
+	if (nClientes < 0) {
 		_tprintf_s(_T("\nValor da RegKey %s inválido!"), _NCLIENTES);
 		CloseHandle(hSem);
-		return 1; 
+		return 1;
+	}
+
+	if (!InitializeCriticalSectionAndSpinCount(&cs, 0)) {
+		PrintErrorMsg(GetLastError(), _T("Erro em InitializeCriticalSectionAndSpinCount"));
+		CloseHandle(hSem);
+		return 1;
+	}
+
+	hEventBoard = CreateEvent(NULL, TRUE, FALSE, NULL);
+	if (hEventBoard == NULL) {
+		PrintErrorMsg(GetLastError(), _T("Erro em CreateEvent"));
+		DeleteCriticalSection(&cs);
+		CloseHandle(hSem);
+		return 1;
 	}
 
 	empresas = AlocaEmpresas();
 	if (empresas == NULL) {
 		_tprintf_s(_T("\nErro ao alocar memória para empresas."));
+		CloseHandle(hEventBoard);
+		DeleteCriticalSection(&cs);
 		CloseHandle(hSem);
 		return 1;
 	}
@@ -76,36 +94,31 @@ int _tmain(int argc, TCHAR* argv[]) {
 	users = AlocaUsers();
 	if (users == NULL) {
 		_tprintf_s(_T("\nErro ao alocar memória para users."));
+		CloseHandle(hEventBoard);
+		DeleteCriticalSection(&cs);
 		CloseHandle(hSem);
 		return 1;
 	}
 
 	threadData.continua = &continua;
+
 	threadData.empresas = empresas;
 	threadData.numEmpresas = &numEmpresas;
+
 	threadData.users = users;
 	threadData.numUsers = &numUsers;
 
-	threadData.hEvent_Board = CreateEvent(NULL, TRUE, FALSE, NULL);
-	if (threadData.hEvent_Board == NULL) {
-		PrintErrorMsg(GetLastError(), _T("Erro em CreateEvent"));
-		CloseHandle(hSem);
-		return 1;
-	}
-
-	threadData.hMutex = CreateMutex(NULL, FALSE, NULL);
-	if (threadData.hEvent_Board == NULL) {
-		PrintErrorMsg(GetLastError(), _T("Erro em CreateMutex"));
-		CloseHandle(hSem);
-		return 1;
-	}
+	threadData.hEvent_Board = hEventBoard;
+	threadData.pCs = &cs;
 
 	if (FileExists(FILE_EMPRESAS)) {
 		if (!CarregaEmpresas(empresas, &numEmpresas)) {		
 			_tprintf_s(_T("\n(Função CarregaEmpresas)"));
+			free(users);
+			free(empresas);
+			CloseHandle(hEventBoard);
+			DeleteCriticalSection(&cs);
 			CloseHandle(hSem);
-			CloseHandle(threadData.hEvent_Board);
-			CloseHandle(threadData.hMutex);
 			return 1;
 		}
 	}
@@ -115,9 +128,11 @@ int _tmain(int argc, TCHAR* argv[]) {
 	if (FileExists(FILE_USERS)) {
 		if (!CarregaUsers(users, &numUsers)) {
 			_tprintf_s(_T("\n(Função CarregaUsers)"));
+			free(users);
+			free(empresas);
+			CloseHandle(hEventBoard);
+			DeleteCriticalSection(&cs);
 			CloseHandle(hSem);
-			CloseHandle(threadData.hEvent_Board);
-			CloseHandle(threadData.hMutex);
 			return 1; 
 		}
 	}
@@ -126,11 +141,11 @@ int _tmain(int argc, TCHAR* argv[]) {
 	hThread[0] = CreateThread(NULL, 0, ThreadBoard, (LPVOID)&threadData, 0, &threadId[0]);
 	if (hThread[0] == NULL) {
 		PrintErrorMsg(GetLastError(), _T("Erro ao lançar ThreadBoard"));
-		CloseHandle(hSem);
-		CloseHandle(threadData.hEvent_Board);
-		CloseHandle(threadData.hMutex);
 		free(users);
 		free(empresas);
+		CloseHandle(hEventBoard);
+		DeleteCriticalSection(&cs);
+		CloseHandle(hSem);
 		return 1;
 	}
 
@@ -157,31 +172,31 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 	if (!SalvaEmpresas(empresas, numEmpresas)) {
 		_tprintf_s(_T("\n(Função SalvaEmpresas)"));
-		CloseHandle(hSem);
-		CloseHandle(threadData.hMutex);
-		CloseHandle(threadData.hEvent_Board);
 		free(users);
-		free(empresas);
+		free(empresas);;
+		CloseHandle(hEventBoard);
+		DeleteCriticalSection(&cs);
+		CloseHandle(hSem);;
 		return 1;
 	}
 
 	if (!SalvaUsers(users, numUsers)) {
 		_tprintf_s(_T("\n(Função SalvaUsers)"));
-		CloseHandle(hSem);
-		CloseHandle(threadData.hMutex);
-		CloseHandle(threadData.hEvent_Board);
 		free(users);
 		free(empresas);
+		CloseHandle(hEventBoard);
+		DeleteCriticalSection(&cs);
+		CloseHandle(hSem);
 		return 1;
 	}
-
-	CloseHandle(threadData.hMutex);
-
-	CloseHandle(threadData.hEvent_Board);
 
 	free(users);
 
 	free(empresas);
+
+	CloseHandle(hEventBoard);
+
+	DeleteCriticalSection(&cs);
 
 	CloseHandle(hSem);
 

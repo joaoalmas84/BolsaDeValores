@@ -48,16 +48,16 @@ DWORD WINAPI ThreadBoard(LPVOID data) {
 	}
 
 	while (1) {
-		WaitForSingleObject(ptd->hMutex, INFINITE);
+		EnterCriticalSection(ptd->pCs);
 		continua = *ptd->continua;
-		ReleaseMutex(ptd->hMutex);
+		LeaveCriticalSection(ptd->pCs);
 
 		if (!continua) { break; }
 
-		WaitForSingleObject(ptd->hMutex, INFINITE);
+		EnterCriticalSection(ptd->pCs);
 		ZeroMemory(sharedMemory, sizeof(sharedMemory));
 		CopyMemory(sharedMemory->empresas, ptd->empresas, sizeof(EMPRESA)*MAX_EMPRESAS_TO_SHM);
-		ReleaseMutex(ptd->hMutex);
+		LeaveCriticalSection(ptd->pCs);
 
 		SetEvent(hEvent); // Avisa a Board de que pode voltar atualizar o TOP
 		ResetEvent(hEvent);
@@ -127,30 +127,30 @@ BOOL ADDC(const CMD comando, TDATA_BOLSA* threadData, TCHAR* mensagem) {
 	DWORD numEmpresas;
 	BOOL jaExiste = FALSE;
 
-	WaitForSingleObject(threadData->hMutex, INFINITE);
+	EnterCriticalSection(threadData->pCs);
 	numEmpresas = *threadData->numEmpresas;
-	ReleaseMutex(threadData->hMutex);
+	LeaveCriticalSection(threadData->pCs);
 
 	if (numEmpresas >= MAX_EMPRESAS) {
 		_tcscpy_s(mensagem, SMALL_TEXT, _T("O número máximo de empresas já foi atingido!\n"));
 		return FALSE;
 	}
 
-	WaitForSingleObject(threadData->hMutex, INFINITE);
+	EnterCriticalSection(threadData->pCs);
 	for (DWORD i = 0; i < numEmpresas; i++) {
 		if (_tcscmp(ToLowerString(threadData->empresas[i].nome), ToLowerString(comando.Args[1])) == 0) {
 			jaExiste = TRUE;
 			break;
 		}
 	}
-	ReleaseMutex(threadData->hMutex);
+	LeaveCriticalSection(threadData->pCs);
 
 	if (jaExiste) { 
 		_tcscpy_s(mensagem, SMALL_TEXT, _T("Já existe uma empresa com esse nome\n"));
 		return FALSE; 
 	}
 
-	WaitForSingleObject(threadData->hMutex, INFINITE);
+	EnterCriticalSection(threadData->pCs);
 	threadData->empresas[numEmpresas].numAcoes = numAcoes;
 	threadData->empresas[numEmpresas].preco = preco;
 	_tcscpy_s(threadData->empresas[numEmpresas].nome, SMALL_TEXT, comando.Args[1]);
@@ -158,7 +158,7 @@ BOOL ADDC(const CMD comando, TDATA_BOLSA* threadData, TCHAR* mensagem) {
 	(*threadData->numEmpresas)++;
 
 	qsort(threadData->empresas, *threadData->numEmpresas, sizeof(EMPRESA), ComparaEmpresas);
-	ReleaseMutex(threadData->hMutex);
+	LeaveCriticalSection(threadData->pCs);
 
 	SetEvent(threadData->hEvent_Board);
 	ResetEvent(threadData->hEvent_Board);
@@ -167,16 +167,16 @@ BOOL ADDC(const CMD comando, TDATA_BOLSA* threadData, TCHAR* mensagem) {
 }
 
 void LISTC(TDATA_BOLSA* threadData) {
-	WaitForSingleObject(threadData->hMutex, INFINITE);
+	EnterCriticalSection(threadData->pCs);
 	PrintEmpresas(threadData->empresas, *threadData->numEmpresas);
-	ReleaseMutex(threadData->hMutex);
+	LeaveCriticalSection(threadData->pCs);
 }
 
 void STOCK(const CMD comando, TDATA_BOLSA* threadData) {
 	DOUBLE preco = _tcstod(comando.Args[2], NULL);
 	DWORD numEmpresas;
 
-	WaitForSingleObject(threadData->hMutex, INFINITE);
+	EnterCriticalSection(threadData->pCs);
 	numEmpresas = *threadData->numEmpresas;
 
 	for (DWORD i = 0; i < numEmpresas; i++) {
@@ -186,14 +186,14 @@ void STOCK(const CMD comando, TDATA_BOLSA* threadData) {
 			return;
 		}
 	}
-	ReleaseMutex(threadData->hMutex);
+	LeaveCriticalSection(threadData->pCs);
 	_tprintf(_T("O nome %s nao foi encontrado\n"), comando.Args[1]);
 }
 
 void USERS(TDATA_BOLSA* threadData) {
-	WaitForSingleObject(threadData->hMutex, INFINITE);
+	EnterCriticalSection(threadData->pCs);
 	PrintUsers(threadData->users, *threadData->numUsers);
-	ReleaseMutex(threadData->hMutex);
+	LeaveCriticalSection(threadData->pCs);
 }
 
 void PAUSE() {
@@ -201,9 +201,9 @@ void PAUSE() {
 }
 
 void CLOSE(TDATA_BOLSA* threadData) {
-	WaitForSingleObject(threadData->hMutex, INFINITE);
+	EnterCriticalSection(threadData->pCs);
 	*threadData->continua = FALSE;
-	ReleaseMutex(threadData->hMutex);
+	LeaveCriticalSection(threadData->pCs);
 	SetEvent(threadData->hEvent_Board);
 }
 

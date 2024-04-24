@@ -18,8 +18,9 @@ typedef struct {
 	USER* users;		// Ponteiro para o array de users localizado na funcao main
 	DWORD* numUsers;	// Ponteiro para o numero de users registadas localizado na funcao main
 
-	HANDLE hEvent_Board;// Evento para avisar a Board de que a informacao foi atualizada
-	HANDLE hMutex;		// Mutex para proteger alteracoes as variaveis acima declaradas
+	HANDLE hEvent_Board;	// Evento para avisar a Board de que a informacao foi atualizada
+	CRITICAL_SECTION* pCs;	// Ponteiro para a Critical Section que protege alteracoes as variaveis 
+							//	acima declaradas localizada na funcao main
 } TDATA_BOLSA;
 
 //|=========================================================================|

@@ -11,6 +11,8 @@
 int _tmain(int argc, TCHAR* argv[]) {
 	int setmodeReturn;
 
+	USER eu;
+
 	// Buffer para guardar mensagens de erro
 	TCHAR errorMsg[TAM];
 
