@@ -1,5 +1,10 @@
 #pragma once
 
+#include "Utils.h"
+#include "Structs.h"
+
+#include "Board.h"
+
 // Thread Data - Processo Board
 typedef struct {
 	BOOL* continua;

@@ -1,9 +1,13 @@
 #include <Windows.h>
 #include <tchar.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "pch.h"
+#include "Structs.h"
+
 #include "Utils.h"
+
 
 BOOL FileExists(const LPCWSTR fileName) {
 	return GetFileAttributes(fileName) != INVALID_FILE_ATTRIBUTES;
@@ -77,10 +81,6 @@ TCHAR* ToLowerString(const TCHAR* s) {
 	aux[i] = '\0';
 
 	return aux;
-}
-
-void InitRand() {
-	srand((unsigned)time(NULL));
 }
 
 DWORD RandomValue(DWORD max, DWORD min) {

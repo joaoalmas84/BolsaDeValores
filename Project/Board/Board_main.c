@@ -5,6 +5,8 @@
 #include <io.h>
 
 #include "Utils.h"
+#include "Structs.h"
+
 #include "Board.h"
 
 int _tmain(int argc, TCHAR* argv[]) {

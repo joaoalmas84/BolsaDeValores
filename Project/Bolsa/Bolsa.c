@@ -2,9 +2,11 @@
 #include <tchar.h>
 #include <stdio.h>
 
-#include "Bolsa.h"
 #include "Commands.h"
 #include "Utils.h"
+#include "Structs.h"
+
+#include "Bolsa.h"
 
 //|=========================================================================|
 //|===============================| Threads |===============================|

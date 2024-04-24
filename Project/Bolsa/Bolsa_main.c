@@ -6,6 +6,7 @@
 
 #include "Commands.h"
 #include "Utils.h"
+#include "Structs.h"
 
 #include "Bolsa.h"
 

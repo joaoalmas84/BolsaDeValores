@@ -7,6 +7,9 @@
 
 #include "Commands.h"
 #include "Utils.h"
+#include "Structs.h"
+
+#include "Bolsa.h"
 
 // Thread Data - Processo Bolsa
 typedef struct {
