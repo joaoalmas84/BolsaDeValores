@@ -8,13 +8,12 @@
 #include "Board.h"
 
 int _tmain(int argc, TCHAR* argv[]) {
-    int setmodeReturn;
+    int setmodeReturn; // Evitar o warning da funcao setmode();
 
     DWORD codigoErro;
 
-    // Numero de empresas a listar
-    DWORD N;
-
+    DWORD N; // Numero de empresas a listar (tamanho do top)
+    
     EMPRESA empresas[MAX_EMPRESAS_TO_SHM];
     BOOL continua = TRUE;
 
@@ -27,9 +26,9 @@ int _tmain(int argc, TCHAR* argv[]) {
     SHM* sharedMemory;
     HANDLE hMap;
     HANDLE hMutex_SHM;
-    HANDLE hEvent_SHM; // Evento SHM(Reset Manual);
+    HANDLE hEvent_SHM; // Evento SHM (Reset Manual);
 
-    // Array de Eventos para o WaitForMultipleObjects()
+    // Array de Eventos para o WaitForMultipleObjects();
     HANDLE hEvents[2]; // [0]: Evento_SHM; [1]: Evento_Exit
     
 #ifdef UNICODE

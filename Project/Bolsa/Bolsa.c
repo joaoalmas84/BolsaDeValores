@@ -13,10 +13,13 @@
 DWORD WINAPI ThreadBoard(LPVOID data) {
 	TDATA_BOLSA* ptd = (TDATA_BOLSA*)data;
 
-	BOOL continua = TRUE;
+	BOOL continua = TRUE; // Flag que ira imitar a flag continua na estrutura "TDATA_BOLSA"
 
-	HANDLE hMap, hMutex, hEvent; // Evento que avisa a board para ler
-	SHM* sharedMemory;
+	HANDLE hMap;	// HANDLE do FileMapping
+	HANDLE hMutex;	// Mutex para proteger alteracoes a sharedMemory
+	HANDLE hEvent;	// Evento que avisa a board de que a sharedMemory foi atualizada
+
+	SHM* sharedMemory; // Ponteiro para a SharedMemory
 
 	hMap = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, sizeof(SHM), SHARED_MEMORY);
 	if (hMap == NULL) {
@@ -54,15 +57,12 @@ DWORD WINAPI ThreadBoard(LPVOID data) {
 		WaitForSingleObject(ptd->hMutex, INFINITE);
 		ZeroMemory(sharedMemory, sizeof(sharedMemory));
 		CopyMemory(sharedMemory->empresas, ptd->empresas, sizeof(EMPRESA)*MAX_EMPRESAS_TO_SHM);
-		/*for (DWORD i = 0; i < MAX_EMPRESAS_TO_SHM; i++) {
-			sharedMemory->empresas[i] = ptd->empresas[i];
-		}*/
 		ReleaseMutex(ptd->hMutex);
 
-		SetEvent(hEvent);
+		SetEvent(hEvent); // Avisa a Board de que pode voltar atualizar o TOP
 		ResetEvent(hEvent);
 
-		WaitForSingleObject(ptd->hEvent_Board, INFINITE);
+		WaitForSingleObject(ptd->hEvent_Board, INFINITE); // Espera por alteracoes aos dados
 	}
 
 	FlushViewOfFile(sharedMemory, 0);
@@ -342,12 +342,8 @@ BOOL CarregaUsers(USER users[], DWORD* numUsers) {
 	}
 	buff[nbytes / sizeof(TCHAR)] = '\0';
 
-	for (DWORD i = 0; buff[i + 1] != '\n'; i++) {
-		buff[i] = buff[i + 1];
-	}
-
 	if (!ProcessaUsersDoFicheiro(buff, users, numUsers)) {
-		PrintErrorMsg(GetLastError(), _T("\nErro em _stscanf_s"));
+		PrintErrorMsg(GetLastError(), _T("Erro em _stscanf_s"));
 		CloseHandle(hFile);
 		return FALSE;
 	}

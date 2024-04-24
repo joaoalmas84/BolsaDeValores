@@ -10,16 +10,16 @@
 
 // Thread Data - Processo Bolsa
 typedef struct {
-	BOOL* continua;		// Ponteiro para a flag continua localizada na funcao main
+	BOOL* continua;		// Ponteiro para a flag continua localizada na funcao main 
 
 	EMPRESA* empresas;	// Ponteiro para o array de empresas localizado na funcao main
 	DWORD* numEmpresas;	// Ponteiro para o numero de empresas registadas localizado na funcao main
 	
-	USER* users;		// Ponteiro para o array de users localizado na função main
+	USER* users;		// Ponteiro para o array de users localizado na funcao main
 	DWORD* numUsers;	// Ponteiro para o numero de users registadas localizado na funcao main
 
 	HANDLE hEvent_Board;// Evento para avisar a Board de que a informacao foi atualizada
-	HANDLE hMutex;		
+	HANDLE hMutex;		// Mutex para proteger alteracoes as variaveis acima declaradas
 } TDATA_BOLSA;
 
 //|=========================================================================|
@@ -61,20 +61,27 @@ void CLOSE(TDATA_BOLSA* threadData);
 //|===============================| Ficheiros de Dados - Empresas |===============================|
 //|===============================================================================================|
 
+// Le o conteudo do ficheiro "empresas.txt" e envia-o para a funcao "ProcessaEmpresasDoFicheiro(...);"
 BOOL CarregaEmpresas(
 	EMPRESA empresas[], 
 	DWORD* numEmpresas);
 
+// Recebe o conteudo do ficheiro "empresas.txt" e separa-o por linhas e envia cada linha para a funcao
+// "GetEmpresa(...);" 
 BOOL ProcessaEmpresasDoFicheiro(
 	const TCHAR* buff,
 	EMPRESA empresas[],
 	DWORD* numEmpresas);
 
+// Recebe uma linha de texto no formato <nome> <n. de acoes> <preco> e transofrma essa informacao numa
+// estrutura EMPRESA
 BOOL GetEmpresa(
 	const TCHAR* str, 
 	EMPRESA* empresa, 
 	DWORD* numEmpresas);
 
+// Constroi uma string com a informacao contida no array empresas e escreve-a para o ficheiro 
+// "empresas.txt"
 BOOL SalvaEmpresas(
 	const EMPRESA empresas[],
 	const DWORD numEmpresas);
@@ -83,20 +90,27 @@ BOOL SalvaEmpresas(
 //|===============================| Ficheiros de Dados - Users |===============================|
 //|============================================================================================|
 
+// Le o conteudo do ficheiro "usres.txt" e envia-o para a funcao "ProcessaUsersDoFicheiro(...);"
 BOOL CarregaUsers(
 	USER users[],
 	DWORD* numUsers);
 
+// Recebe o conteudo do ficheiro "users.txt" e separa-o por linhas e envia cada linha para a funcao
+// "GetUser(...);"
 BOOL ProcessaUsersDoFicheiro(
 	const TCHAR* buff,
 	USER users[],
 	DWORD* numUsers);
 
+// Recebe uma linha de texto no formato <nome> <password> <saldo> e transofrma essa informacao numa
+// estrutura USER
 BOOL GetUser(
 	const TCHAR* str,
 	USER* user,
 	DWORD* numUsers);
 
+// Constroi uma string com a informacao contida no array users e escreve-a para o ficheiro 
+// "users.txt"
 BOOL SalvaUsers(
 	const USER users[],
 	const DWORD numUsers);

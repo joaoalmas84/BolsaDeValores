@@ -134,6 +134,12 @@ int _tmain(int argc, TCHAR* argv[]) {
 		return 1;
 	}
 
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	/// A PARTIR DAQUI TODAS AS ALTERACOES FEITAS AS VARIAVEIS									///
+	/// "empresas[]", "numEmpresas", "users[]" e "numUsers"										///
+	/// SAO CONSIDERADAS ZONAS CRITICAS E DEVEM SER PROTEGIDAS POR UM MUTEX (threadData.hMutex)	///
+	///////////////////////////////////////////////////////////////////////////////////////////////
+
 	system("cls");
 
 	while (1) {
