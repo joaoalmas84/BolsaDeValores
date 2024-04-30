@@ -9,17 +9,17 @@
 #include "Utils.h"
 #include "Structs.h"
 
-#include "Bolsa.h"
-
 // Thread Data - Processo Bolsa
 typedef struct {
-	BOOL* continua;		// Ponteiro para a flag continua localizada na funcao main 
+	const DWORD nClientes;	// Numero de clientes que podem estar ligados em simultaneo
 
-	EMPRESA* empresas;	// Ponteiro para o array de empresas localizado na funcao main
-	DWORD* numEmpresas;	// Ponteiro para o numero de empresas registadas localizado na funcao main
+	BOOL* continua;			// Ponteiro para a flag continua localizada na funcao main 
+
+	EMPRESA* empresas;		// Ponteiro para o array de empresas localizado na funcao main
+	DWORD* numEmpresas;		// Ponteiro para o numero de empresas registadas localizado na funcao main
 	
-	USER* users;		// Ponteiro para o array de users localizado na funcao main
-	DWORD* numUsers;	// Ponteiro para o numero de users registadas localizado na funcao main
+	USER* users;			// Ponteiro para o array de users localizado na funcao main
+	DWORD* numUsers;		// Ponteiro para o numero de users registadas localizado na funcao main
 
 	HANDLE hEvent_Board;	// Evento para avisar a Board de que a informacao foi atualizada
 	CRITICAL_SECTION* pCs;	// Ponteiro para a Critical Section que protege alteracoes as variaveis 
@@ -51,9 +51,10 @@ BOOL ADDC(
 
 void LISTC(TDATA_BOLSA* threadData);
 
-void STOCK(
+BOOL STOCK(
 	const CMD comando, 
-	TDATA_BOLSA* threadData);
+	TDATA_BOLSA* threadData,
+	TCHAR* mensagem);
 
 void USERS(TDATA_BOLSA* threadData);
 

@@ -49,6 +49,16 @@ int _tmain(int argc, TCHAR* argv[]) {
 	setmodeReturn = _setmode(_fileno(stdout), _O_WTEXT);
 	setmodeReturn = _setmode(_fileno(stderr), _O_WTEXT);
 #endif 
+	//_tprintf_s(_T("\nIN\n--------------------------------"));
+	//_tprintf_s(_T("\nsizeof(PEDIDO_LOGIN): %d bytes"), (int)sizeof(PEDIDO_LOGIN));
+	//_tprintf_s(_T("\nsizeof(PEDIDO_COMPRA): %d bytes"), (int)sizeof(PEDIDO_COMPRA));
+	//_tprintf_s(_T("\nsizeof(PEDIDO_VENDA): %d bytes"), (int)sizeof(PEDIDO_VENDA));
+
+	//_tprintf_s(_T("\nOUT\n--------------------------------"));
+	//_tprintf_s(_T("\nsizeof(RESPOSTA_LOGIN): %d bytes"), (int)sizeof(RESPOSTA_LOGIN));
+	//_tprintf_s(_T("\nsizeof(RESPOSTA_COMPRA): %d bytes"), (int)sizeof(RESPOSTA_COMPRA));
+	//_tprintf_s(_T("\nsizeof(RESPOSTA_VENDA): %d bytes"), (int)sizeof(RESPOSTA_VENDA));
+	//_tprintf_s(_T("\nsizeof(RESPOSTA_LISTA): %d bytes"), (int)sizeof(RESPOSTA_LISTA));
 
 	hSem = CreateSemaphore(NULL, 1, 1, SEM_BOLSA);
 	if (hSem == NULL) {
@@ -108,7 +118,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 	threadData.users = users;
 	threadData.numUsers = &numUsers;
-
+		
 	threadData.hEvent_Board = hEventBoard;
 	threadData.pCs = &cs;
 
@@ -138,6 +148,12 @@ int _tmain(int argc, TCHAR* argv[]) {
 		}
 	}
 
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	/// A PARTIR DAQUI TODAS AS ALTERACOES FEITAS AS VARIAVEIS									///
+	/// "empresas[]", "numEmpresas", "users[]" e "numUsers"										///
+	/// SAO CONSIDERADAS ZONAS CRITICAS E DEVEM SER PROTEGIDAS POR UM MUTEX (threadData.hMutex)	///
+	///////////////////////////////////////////////////////////////////////////////////////////////
+
 	// Lançamento da ThreadBoard 
 	hThread[0] = CreateThread(NULL, 0, ThreadBoard, (LPVOID)&threadData, 0, &threadId[0]);
 	if (hThread[0] == NULL) {
@@ -150,11 +166,27 @@ int _tmain(int argc, TCHAR* argv[]) {
 		return 1;
 	}
 
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	/// A PARTIR DAQUI TODAS AS ALTERACOES FEITAS AS VARIAVEIS									///
-	/// "empresas[]", "numEmpresas", "users[]" e "numUsers"										///
-	/// SAO CONSIDERADAS ZONAS CRITICAS E DEVEM SER PROTEGIDAS POR UM MUTEX (threadData.hMutex)	///
-	///////////////////////////////////////////////////////////////////////////////////////////////
+	// Lançamento da ThreadGetClients 
+	hThread[1] = CreateThread(NULL, 0, ThreadGetClients, (LPVOID)&threadData, 0, &threadId[1]);
+	if (hThread[1] == NULL) {
+		PrintErrorMsg(GetLastError(), _T("Erro ao lançar ThreadGetClients"));
+
+		EnterCriticalSection(&cs);
+		continua = FALSE;
+		LeaveCriticalSection(&cs);
+
+		SetEvent(hEventBoard);
+
+		WaitForSingleObject(hThread[0], INFINITE);
+
+		CloseHandle(hThread[0]);
+		free(users);
+		free(empresas);
+		CloseHandle(hEventBoard);
+		DeleteCriticalSection(&cs);
+		CloseHandle(hSem);
+		return 1;
+	}
 
 	system("cls");
 
@@ -190,6 +222,10 @@ int _tmain(int argc, TCHAR* argv[]) {
 		CloseHandle(hSem);
 		return 1;
 	}
+
+	CloseHandle(hThread[1]);
+
+	CloseHandle(hThread[0]);
 
 	free(users);
 

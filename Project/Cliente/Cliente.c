@@ -1,8 +1,25 @@
 #include <Windows.h>
 #include <tchar.h>
 
-#include "Cliente.h"
 #include "Commands.h"
+
+#include "Cliente.h"
+
+//|=========================================================================|
+//|===============================| Threads |===============================|
+//|=========================================================================|
+
+DWORD WINAPI ThreadRead(LPVOID data) {
+	TDATA_CLIENTE* ptd = (TDATA_CLIENTE*)data;
+
+	//if (!ReadFile(ptd->hPipe, ))
+
+	ExitThread(6);
+}
+
+//|==========================================================================|
+//|===============================| Comandos |===============================|
+//|==========================================================================|
 
 void ExecutaComando(const CMD comando) {
 	switch (comando.Index) {

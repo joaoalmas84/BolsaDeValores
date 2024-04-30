@@ -13,6 +13,7 @@
 #define SHM_EVENT _T("SHM_EVENT")			// nome do evento que avisa a board
 #define SHM_MUTEX _T("SHM_MUTEX")			// nome do mutex utilizado pela bolsa e pela board
 #define SEM_BOLSA _T("SEM_BOLSA")			// nome do semaforo que impede que haja mais que um processo bolsa em simultaneo
+#define PIPE_NAME _T("\\\\.\\pipe\\comunicacao")	// nome do named pipe utilizado na comunicacao Cliente <-> Blosa
 
 // Valores Constantes
 #define BIG_TEXT 500			// Tamanho de buffer para textos

@@ -77,7 +77,21 @@ DWORD WINAPI ThreadBoard(LPVOID data) {
 
 	CloseHandle(hMap);
 
-	ExitThread(0);
+	ExitThread(6);
+}
+
+DWORD WINAPI ThreadGetClients(LPVOID data) {
+	TDATA_BOLSA* ptd = (TDATA_BOLSA*)data;
+
+	HANDLE hPipe = NULL;
+
+	//hPipe = CreateNamedPipe(PIPE_NAME, PIPE_ACCESS_DUPLEX,
+	//	PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, 
+	//	ptd->nClientes, 500, 6000, 1000, NULL);
+
+
+
+	ExitThread(6);
 }
 
 //|==========================================================================|
@@ -100,15 +114,13 @@ void ExecutaComando(const CMD comando, TDATA_BOLSA* threadData) {
 
 	switch (comando.Index) {
 		case 0:
-			if (!ADDC(comando, threadData, mensagem)) {
-				_tprintf_s(_T("%s"), mensagem);
-			}
+			if (!ADDC(comando, threadData, mensagem)) { _tprintf_s(_T("\n%s"), mensagem); }
 			break;
 		case 1:
 			LISTC(threadData);
 			break;
 		case 2:
-			STOCK(comando, threadData);
+			if (!STOCK(comando, threadData, mensagem)) { _tprintf_s(_T("\n%s"), mensagem); }
 			break;
 		case 3:
 			USERS(threadData);
@@ -134,7 +146,7 @@ BOOL ADDC(const CMD comando, TDATA_BOLSA* threadData, TCHAR* mensagem) {
 	LeaveCriticalSection(threadData->pCs);
 
 	if (numEmpresas >= MAX_EMPRESAS) {
-		_tcscpy_s(mensagem, SMALL_TEXT, _T("O número máximo de empresas já foi atingido!\n"));
+		_tcscpy_s(mensagem, SMALL_TEXT, _T("O número máximo de empresas já foi atingido!"));
 		return FALSE;
 	}
 
@@ -148,7 +160,7 @@ BOOL ADDC(const CMD comando, TDATA_BOLSA* threadData, TCHAR* mensagem) {
 	LeaveCriticalSection(threadData->pCs);
 
 	if (jaExiste) { 
-		_tcscpy_s(mensagem, SMALL_TEXT, _T("Já existe uma empresa com esse nome\n"));
+		_tcscpy_s(mensagem, SMALL_TEXT, _T("Já existe uma empresa com esse nome"));
 		return FALSE; 
 	}
 
@@ -174,22 +186,35 @@ void LISTC(TDATA_BOLSA* threadData) {
 	LeaveCriticalSection(threadData->pCs);
 }
 
-void STOCK(const CMD comando, TDATA_BOLSA* threadData) {
+BOOL STOCK(const CMD comando, TDATA_BOLSA* threadData, TCHAR* mensagem) {
 	DOUBLE preco = _tcstod(comando.Args[2], NULL);
 	DWORD numEmpresas;
+	DWORD i;
 
 	EnterCriticalSection(threadData->pCs);
 	numEmpresas = *threadData->numEmpresas;
+	LeaveCriticalSection(threadData->pCs);
 
-	for (DWORD i = 0; i < numEmpresas; i++) {
-		if (_tcscmp(threadData->empresas[i].nome, comando.Args[1]) == 0) {
+	if (numEmpresas == 0) {
+		_tcscpy_s(mensagem, SMALL_TEXT, _T("Ainda não existem empresas registadas no sistema."));
+		return FALSE;
+	}
+
+	EnterCriticalSection(threadData->pCs);
+	for (i = 0; i < numEmpresas; i++) {
+		if (_tcscmp(ToLowerString(threadData->empresas[i].nome), ToLowerString(comando.Args[1])) == 0) {
 			threadData->empresas[i].preco = preco;
 			qsort(threadData->empresas, numEmpresas, sizeof(EMPRESA), ComparaEmpresas);
-			return;
+			break;
 		}
 	}
 	LeaveCriticalSection(threadData->pCs);
-	_tprintf(_T("O nome %s nao foi encontrado\n"), comando.Args[1]);
+
+	if (i < numEmpresas) { return TRUE; }
+	else {
+		_stprintf_s(mensagem, SMALL_TEXT, _T("A empresa '%s' não está registada no sistema\n"), comando.Args[1]);
+		return FALSE;
+	}
 }
 
 void USERS(TDATA_BOLSA* threadData) {
@@ -215,8 +240,9 @@ void CLOSE(TDATA_BOLSA* threadData) {
 
 BOOL CarregaEmpresas(EMPRESA empresas[], DWORD* numEmpresas) {
 	HANDLE hFile;
-	TCHAR buff[BIG_TEXT];
-	DWORD nbytes;
+	char buff_c[BIG_TEXT];
+	TCHAR buff_t[BIG_TEXT];
+	DWORD nbytes, res;
 
 	hFile = CreateFile(FILE_EMPRESAS, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hFile == INVALID_HANDLE_VALUE) {
@@ -224,14 +250,22 @@ BOOL CarregaEmpresas(EMPRESA empresas[], DWORD* numEmpresas) {
 		return FALSE;
 	}
 
-	if (!ReadFile(hFile, buff, sizeof(buff), &nbytes, NULL)) {
+	if (!ReadFile(hFile, buff_c, sizeof(buff_c), &nbytes, NULL)) {
 		PrintErrorMsg(GetLastError(), _T("Erro em ReadFile"));
 		CloseHandle(hFile);
 		return FALSE;
 	}
-	buff[nbytes/sizeof(TCHAR)] = '\0';
+	buff_c[nbytes/sizeof(char)] = '\0';
 
-	if (!ProcessaEmpresasDoFicheiro(buff, empresas, numEmpresas)) {
+	res = MultiByteToWideChar(CP_UTF8, MB_COMPOSITE, buff_c, BIG_TEXT, buff_t, (int)_tcslen(buff_t));
+	if (res == 0) {
+		PrintErrorMsg(GetLastError(), _T("Erro em MultiByteToWideChar"));
+		CloseHandle(hFile);
+		return FALSE;
+	}
+	buff_t[_tcslen(buff_t)] = _T('\0');
+
+	if (!ProcessaEmpresasDoFicheiro(buff_t, empresas, numEmpresas)) {
 		_tprintf_s(_T("\nErro em _stscanf_s"));
 		CloseHandle(hFile);
 		return FALSE;
@@ -288,18 +322,20 @@ BOOL GetEmpresa(const TCHAR* str, EMPRESA* empresa, DWORD* numEmpresas) {
 
 BOOL SalvaEmpresas(const EMPRESA empresas[], const DWORD numEmpresas) {
 	HANDLE hFile;
-	TCHAR buff [SMALL_TEXT];
-	
+	TCHAR buff_t [SMALL_TEXT];
+	char buff_c[SMALL_TEXT];
 	DWORD nbytes, res;
 
-	hFile = CreateFile(FILE_EMPRESAS, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	DWORD dwCreationDisposition = FileExists(FILE_EMPRESAS) ? OPEN_EXISTING : CREATE_NEW;
+
+	hFile = CreateFile(FILE_EMPRESAS, GENERIC_WRITE, 0, NULL, dwCreationDisposition, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hFile == INVALID_HANDLE_VALUE) {
 		PrintErrorMsg(GetLastError(), _T("Erro em CreateFile"));
 		return FALSE;
 	}
 
 	for (DWORD i = 0; i < numEmpresas; i++) {
-		res = _stprintf_s(buff, SMALL_TEXT, _T("%s %d %.2lf\n"),
+		res = _stprintf_s(buff_t, SMALL_TEXT, _T("%s %d %.2lf\n"),
 			empresas[i].nome, empresas[i].numAcoes, empresas[i].preco);
 
 		if (res == -1) {
@@ -307,7 +343,14 @@ BOOL SalvaEmpresas(const EMPRESA empresas[], const DWORD numEmpresas) {
 			return FALSE;
 		}
 
-		if (!WriteFile(hFile, buff, (DWORD)(_tcslen(buff) * sizeof(TCHAR)), &nbytes, NULL)) {
+		res = WideCharToMultiByte(CP_UTF8, WC_COMPOSITECHECK, buff_t, -1, buff_c, SMALL_TEXT, NULL, NULL) ;
+		if (res == 0) {
+			PrintErrorMsg(GetLastError(), _T("Erro em WideCharToMultiByte"));
+			return FALSE;
+		}
+		buff_c[SMALL_TEXT-1] = '\0';
+
+		if (!WriteFile(hFile, buff_c, (DWORD)strlen(buff_c), &nbytes, NULL)) {
 			PrintErrorMsg(GetLastError(), _T("Erro em WriteFile"));
 			CloseHandle(hFile);
 			return FALSE;
@@ -328,23 +371,32 @@ BOOL SalvaEmpresas(const EMPRESA empresas[], const DWORD numEmpresas) {
 
 BOOL CarregaUsers(USER users[], DWORD* numUsers) {
 	HANDLE hFile;
-	TCHAR buff[BIG_TEXT];
-	DWORD nbytes;
+	char buff_c[BIG_TEXT];
+	TCHAR buff_t[BIG_TEXT];
+	DWORD nbytes, res;
 
-	hFile = CreateFile(FILE_USERS, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	hFile = CreateFile(FILE_EMPRESAS, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hFile == INVALID_HANDLE_VALUE) {
 		PrintErrorMsg(GetLastError(), _T("Erro em CreateFile"));
 		return FALSE;
 	}
 
-	if (!ReadFile(hFile, buff, sizeof(buff), &nbytes, NULL)) {
+	if (!ReadFile(hFile, buff_c, sizeof(buff_c), &nbytes, NULL)) {
 		PrintErrorMsg(GetLastError(), _T("Erro em ReadFile"));
 		CloseHandle(hFile);
 		return FALSE;
 	}
-	buff[nbytes / sizeof(TCHAR)] = '\0';
+	buff_c[nbytes / sizeof(char)] = '\0';
 
-	if (!ProcessaUsersDoFicheiro(buff, users, numUsers)) {
+	res = MultiByteToWideChar(CP_UTF8, MB_COMPOSITE, buff_c, BIG_TEXT, buff_t, (int)_tcslen(buff_t));
+	if (res == 0) {
+		PrintErrorMsg(GetLastError(), _T("Erro em MultiByteToWideChar"));
+		CloseHandle(hFile);
+		return FALSE;
+	}
+	buff_t[_tcslen(buff_t)] = _T('\0');
+
+	if (!ProcessaUsersDoFicheiro(buff_t, users, numUsers)) {
 		PrintErrorMsg(GetLastError(), _T("Erro em _stscanf_s"));
 		CloseHandle(hFile);
 		return FALSE;
@@ -404,26 +456,37 @@ BOOL GetUser(const TCHAR* str, USER* user, DWORD* numUsers) {
 
 BOOL SalvaUsers(const USER users[], const DWORD numUsers) {
 	HANDLE hFile;
-	TCHAR buff[SMALL_TEXT];
-
+	TCHAR buff_t[SMALL_TEXT];
+	char buff_c[SMALL_TEXT];
 	DWORD nbytes, res;
 
-	hFile = CreateFile(FILE_USERS, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	DWORD dwCreationDisposition = FileExists(FILE_USERS) ? OPEN_EXISTING : CREATE_NEW;
+
+	hFile = CreateFile(FILE_USERS, GENERIC_WRITE, 0, NULL, dwCreationDisposition, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hFile == INVALID_HANDLE_VALUE) {
 		PrintErrorMsg(GetLastError(), _T("Erro em CreateFile"));
 		return FALSE;
 	}
 
 	for (DWORD i = 0; i < numUsers; i++) {
-		res = _stprintf_s(buff, SMALL_TEXT, _T("%s %s %.2lf\n"),
+		res = _stprintf_s(buff_t, SMALL_TEXT, _T("%s %s %.2lf\n"),
 			users[i].nome, users[i].pass, users[i].carteira.saldo);
 
 		if (res == -1) {
+			_tprintf_s(_T("\nErro em _stprintf_s"));
 			CloseHandle(hFile);
 			return FALSE;
 		}
 
-		if (!WriteFile(hFile, buff, (DWORD)(_tcslen(buff) * sizeof(TCHAR)), &nbytes, NULL)) {
+		res = WideCharToMultiByte(CP_UTF8, WC_COMPOSITECHECK, buff_t, -1, buff_c, SMALL_TEXT, NULL, NULL);
+		if (res == 0) {
+			PrintErrorMsg(GetLastError(), _T("Erro em WideCharToMultiByte"));
+			CloseHandle(hFile);
+			return FALSE;
+		}
+		buff_c[SMALL_TEXT - 1] = '\0';
+
+		if (!WriteFile(hFile, buff_c, (DWORD)strlen(buff_c), &nbytes, NULL)) {
 			PrintErrorMsg(GetLastError(), _T("Erro em WriteFile"));
 			CloseHandle(hFile);
 			return FALSE;
