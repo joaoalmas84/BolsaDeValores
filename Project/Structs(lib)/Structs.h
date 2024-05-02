@@ -26,13 +26,13 @@
 
 // Comunicacao NamedPipes:
 // Cliente -> Board (Pedido)
-#define P_LOGIN 1
+#define P_LOGIN 1	// <- maior
 #define P_COMPRA 2
 #define P_VENDA 3
 #define P_LISTA 4
 
 // Board -> Cliente (Resposta)
-#define R_LOGIN 1
+#define R_LOGIN 1	// <- maior
 #define R_COMPRA 2
 #define R_VENDA 3
 #define R_LISTA 4

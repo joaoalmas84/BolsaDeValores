@@ -85,9 +85,10 @@ DWORD WINAPI ThreadGetClients(LPVOID data) {
 
 	HANDLE hPipe = NULL;
 
-	//hPipe = CreateNamedPipe(PIPE_NAME, PIPE_ACCESS_DUPLEX,
-	//	PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, 
-	//	ptd->nClientes, 500, 6000, 1000, NULL);
+
+	hPipe = CreateNamedPipe(PIPE_NAME, PIPE_ACCESS_DUPLEX, 
+		PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, 
+		ptd->nClientes, sizeof(PEDIDO_LOGIN), sizeof(RESPOSTA_LOGIN), 1000, NULL);
 
 
 
@@ -242,7 +243,7 @@ BOOL CarregaEmpresas(EMPRESA empresas[], DWORD* numEmpresas) {
 	HANDLE hFile;
 	char buff_c[BIG_TEXT];
 	TCHAR buff_t[BIG_TEXT];
-	DWORD nbytes, res;
+	DWORD nbytes;
 
 	hFile = CreateFile(FILE_EMPRESAS, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hFile == INVALID_HANDLE_VALUE) {
@@ -250,20 +251,22 @@ BOOL CarregaEmpresas(EMPRESA empresas[], DWORD* numEmpresas) {
 		return FALSE;
 	}
 
-	if (!ReadFile(hFile, buff_c, sizeof(buff_c), &nbytes, NULL)) {
+	if (!ReadFile(hFile, buff_c, sizeof(buff_c)-1, &nbytes, NULL)) {
 		PrintErrorMsg(GetLastError(), _T("Erro em ReadFile"));
 		CloseHandle(hFile);
 		return FALSE;
 	}
 	buff_c[nbytes/sizeof(char)] = '\0';
 
-	res = MultiByteToWideChar(CP_UTF8, MB_COMPOSITE, buff_c, BIG_TEXT, buff_t, (int)_tcslen(buff_t));
-	if (res == 0) {
+	// nbytes vai ser usado para outra coisa agora
+
+	nbytes = MultiByteToWideChar(CP_UTF8, MB_COMPOSITE, buff_c, (int)strlen(buff_c), buff_t, _countof(buff_t));
+	if (nbytes == 0) {
 		PrintErrorMsg(GetLastError(), _T("Erro em MultiByteToWideChar"));
 		CloseHandle(hFile);
 		return FALSE;
 	}
-	buff_t[_tcslen(buff_t)] = _T('\0');
+	buff_t[nbytes] = _T('\0');
 
 	if (!ProcessaEmpresasDoFicheiro(buff_t, empresas, numEmpresas)) {
 		_tprintf_s(_T("\nErro em _stscanf_s"));
@@ -343,12 +346,14 @@ BOOL SalvaEmpresas(const EMPRESA empresas[], const DWORD numEmpresas) {
 			return FALSE;
 		}
 
-		res = WideCharToMultiByte(CP_UTF8, WC_COMPOSITECHECK, buff_t, -1, buff_c, SMALL_TEXT, NULL, NULL) ;
+		nbytes = WideCharToMultiByte(CP_UTF8, WC_COMPOSITECHECK, buff_t, -1, buff_c, SMALL_TEXT, NULL, NULL) ;
 		if (res == 0) {
 			PrintErrorMsg(GetLastError(), _T("Erro em WideCharToMultiByte"));
 			return FALSE;
 		}
-		buff_c[SMALL_TEXT-1] = '\0';
+		buff_c[nbytes / sizeof(char)] = '\0';
+
+		// nbytes vai ser usado para outra coisa agora
 
 		if (!WriteFile(hFile, buff_c, (DWORD)strlen(buff_c), &nbytes, NULL)) {
 			PrintErrorMsg(GetLastError(), _T("Erro em WriteFile"));
@@ -373,28 +378,30 @@ BOOL CarregaUsers(USER users[], DWORD* numUsers) {
 	HANDLE hFile;
 	char buff_c[BIG_TEXT];
 	TCHAR buff_t[BIG_TEXT];
-	DWORD nbytes, res;
+	DWORD nbytes;
 
-	hFile = CreateFile(FILE_EMPRESAS, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	hFile = CreateFile(FILE_USERS, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hFile == INVALID_HANDLE_VALUE) {
 		PrintErrorMsg(GetLastError(), _T("Erro em CreateFile"));
 		return FALSE;
 	}
 
-	if (!ReadFile(hFile, buff_c, sizeof(buff_c), &nbytes, NULL)) {
+	if (!ReadFile(hFile, buff_c, sizeof(buff_c)-1, &nbytes, NULL)) {
 		PrintErrorMsg(GetLastError(), _T("Erro em ReadFile"));
 		CloseHandle(hFile);
 		return FALSE;
 	}
 	buff_c[nbytes / sizeof(char)] = '\0';
 
-	res = MultiByteToWideChar(CP_UTF8, MB_COMPOSITE, buff_c, BIG_TEXT, buff_t, (int)_tcslen(buff_t));
-	if (res == 0) {
+	// nbytes vai ser usado para outra coisa agora
+
+	nbytes = MultiByteToWideChar(CP_UTF8, MB_COMPOSITE, buff_c, (int)strlen(buff_c), buff_t, _countof(buff_t));
+	if (nbytes == 0) {
 		PrintErrorMsg(GetLastError(), _T("Erro em MultiByteToWideChar"));
 		CloseHandle(hFile);
 		return FALSE;
 	}
-	buff_t[_tcslen(buff_t)] = _T('\0');
+	buff_t[nbytes] = _T('\0');
 
 	if (!ProcessaUsersDoFicheiro(buff_t, users, numUsers)) {
 		PrintErrorMsg(GetLastError(), _T("Erro em _stscanf_s"));
@@ -478,13 +485,15 @@ BOOL SalvaUsers(const USER users[], const DWORD numUsers) {
 			return FALSE;
 		}
 
-		res = WideCharToMultiByte(CP_UTF8, WC_COMPOSITECHECK, buff_t, -1, buff_c, SMALL_TEXT, NULL, NULL);
+		// nbytes vai ser usado para outra coisa agora
+
+		nbytes = WideCharToMultiByte(CP_UTF8, WC_COMPOSITECHECK, buff_t, -1, buff_c, SMALL_TEXT, NULL, NULL);
 		if (res == 0) {
 			PrintErrorMsg(GetLastError(), _T("Erro em WideCharToMultiByte"));
 			CloseHandle(hFile);
 			return FALSE;
 		}
-		buff_c[SMALL_TEXT - 1] = '\0';
+		buff_c[nbytes / sizeof(char)] = '\0';
 
 		if (!WriteFile(hFile, buff_c, (DWORD)strlen(buff_c), &nbytes, NULL)) {
 			PrintErrorMsg(GetLastError(), _T("Erro em WriteFile"));

@@ -49,16 +49,6 @@ int _tmain(int argc, TCHAR* argv[]) {
 	setmodeReturn = _setmode(_fileno(stdout), _O_WTEXT);
 	setmodeReturn = _setmode(_fileno(stderr), _O_WTEXT);
 #endif 
-	//_tprintf_s(_T("\nIN\n--------------------------------"));
-	//_tprintf_s(_T("\nsizeof(PEDIDO_LOGIN): %d bytes"), (int)sizeof(PEDIDO_LOGIN));
-	//_tprintf_s(_T("\nsizeof(PEDIDO_COMPRA): %d bytes"), (int)sizeof(PEDIDO_COMPRA));
-	//_tprintf_s(_T("\nsizeof(PEDIDO_VENDA): %d bytes"), (int)sizeof(PEDIDO_VENDA));
-
-	//_tprintf_s(_T("\nOUT\n--------------------------------"));
-	//_tprintf_s(_T("\nsizeof(RESPOSTA_LOGIN): %d bytes"), (int)sizeof(RESPOSTA_LOGIN));
-	//_tprintf_s(_T("\nsizeof(RESPOSTA_COMPRA): %d bytes"), (int)sizeof(RESPOSTA_COMPRA));
-	//_tprintf_s(_T("\nsizeof(RESPOSTA_VENDA): %d bytes"), (int)sizeof(RESPOSTA_VENDA));
-	//_tprintf_s(_T("\nsizeof(RESPOSTA_LISTA): %d bytes"), (int)sizeof(RESPOSTA_LISTA));
 
 	hSem = CreateSemaphore(NULL, 1, 1, SEM_BOLSA);
 	if (hSem == NULL) {
@@ -203,24 +193,28 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 	WaitForSingleObject(hThread[0], INFINITE);
 
-	if (!SalvaEmpresas(empresas, numEmpresas)) {
-		_tprintf_s(_T("\n(Função SalvaEmpresas)"));
-		free(users);
-		free(empresas);;
-		CloseHandle(hEventBoard);
-		DeleteCriticalSection(&cs);
-		CloseHandle(hSem);;
-		return 1;
+	if (numEmpresas > 0) {
+		if (!SalvaEmpresas(empresas, numEmpresas)) {
+			_tprintf_s(_T("\n(Função SalvaEmpresas)"));
+			free(users);
+			free(empresas);
+			CloseHandle(hEventBoard);
+			DeleteCriticalSection(&cs);
+			CloseHandle(hSem);
+			return 1;
+		}
 	}
 
-	if (!SalvaUsers(users, numUsers)) {
-		_tprintf_s(_T("\n(Função SalvaUsers)"));
-		free(users);
-		free(empresas);
-		CloseHandle(hEventBoard);
-		DeleteCriticalSection(&cs);
-		CloseHandle(hSem);
-		return 1;
+	if (numUsers > 0) {
+		if (!SalvaUsers(users, numUsers)) {
+			_tprintf_s(_T("\n(Função SalvaUsers)"));
+			free(users);
+			free(empresas);
+			CloseHandle(hEventBoard);
+			DeleteCriticalSection(&cs);
+			CloseHandle(hSem);
+			return 1;
+		}
 	}
 
 	CloseHandle(hThread[1]);
