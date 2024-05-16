@@ -48,19 +48,19 @@ DWORD RandomValue(
 
 // APAGAR SE NAO FOR NECESSARIO
 // Preenche as estruturas TDATA com a informacao pretendida (example)
-DWORD PreencheThreadData(
-	TDATA arrayThreadData[],
-	const DWORD numThreads,
-	const TDATA example);
+//DWORD PreencheThreadData(
+//	TDATA arrayThreadData[],
+//	const DWORD numThreads,
+//	const TDATA example);
 
 // APAGAR SE NAO FOR NECESSARIO
 // Lanca as threads
-DWORD LancaThreads(
-	HANDLE arrayThreadHandler[],
-	TDATA arrayThreadData[],
-	DWORD arrayThreadID[],
-	LPTHREAD_START_ROUTINE funcaoThread,
-	const DWORD numThreads);
+//DWORD LancaThreads(
+//	HANDLE arrayThreadHandler[],
+//	TDATA arrayThreadData[],
+//	DWORD arrayThreadID[],
+//	LPTHREAD_START_ROUTINE funcaoThread,
+//	const DWORD numThreads);
 
 // APAGAR SE NAO FOR NECESSARIO
 // Preenche a LookUpTable de gestao das threads

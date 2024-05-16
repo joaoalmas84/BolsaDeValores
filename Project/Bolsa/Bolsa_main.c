@@ -17,7 +17,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 	HANDLE hSem;
 
 	// Numero maximo de clientes que podem estar ligados em simultaneo (RegKey NCLIENTES)
-	DWORD nClientes;
+	DWORD nclientes;
 
 	// Array de empresas alocado dinamicamente para evitar exceder o limite da stack da função main
 	EMPRESA* empresas;		// O seu tamanho sera MAX_EMPRESAS
@@ -31,7 +31,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 	BOOL continua = TRUE;				
 
 	// Variáveis relativas às Threads
-	TDATA_BOLSA threadData;
+	TDATA threadData;
 	HANDLE hThread[3 + MAX_USERS];
 	DWORD threadId[3 + MAX_USERS];
 	HANDLE hEventBoard;	// Evento para avisar a Board de que a informacao foi atualizada
@@ -56,28 +56,28 @@ int _tmain(int argc, TCHAR* argv[]) {
 		return 1;
 	}
 
-	if (WaitForSingleObject(hSem, 100) == WAIT_TIMEOUT) {
+	if (WaitForSingleObject(hSem, 0) == WAIT_TIMEOUT) {
 		_tprintf_s(_T("\nJá existe um processo Bolsa em execução."));
 		CloseHandle(hSem);
 		return 1;
 	}
 
-	nClientes = getNCLIENTES();
-	if (nClientes < 0) {
+	nclientes = getNCLIENTES();
+	if (nclientes < 0) {
 		_tprintf_s(_T("\nValor da RegKey %s inválido!"), _NCLIENTES);
 		CloseHandle(hSem);
 		return 1;
 	}
 
 	if (!InitializeCriticalSectionAndSpinCount(&cs, 0)) {
-		PrintErrorMsg(GetLastError(), _T("Erro em InitializeCriticalSectionAndSpinCount"));
+		PrintErrorMsg(GetLastError(), _T("InitializeCriticalSectionAndSpinCount"));
 		CloseHandle(hSem);
 		return 1;
 	}
 
 	hEventBoard = CreateEvent(NULL, TRUE, FALSE, NULL);
 	if (hEventBoard == NULL) {
-		PrintErrorMsg(GetLastError(), _T("Erro em CreateEvent"));
+		PrintErrorMsg(GetLastError(), _T("CreateEvent"));
 		DeleteCriticalSection(&cs);
 		CloseHandle(hSem);
 		return 1;
@@ -101,6 +101,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 		return 1;
 	}
 
+	threadData.nclientes = nclientes;
 	threadData.continua = &continua;
 
 	threadData.empresas = empresas;

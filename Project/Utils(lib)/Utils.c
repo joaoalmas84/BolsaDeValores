@@ -87,24 +87,24 @@ DWORD RandomValue(DWORD max, DWORD min) {
 	return rand() % (max - min + 1) + min;
 }
 
-DWORD PreencheThreadData(TDATA arrayThreadData[], const DWORD numThreads, const TDATA example) {
-	DWORD i;
-	for (i = 0; i < numThreads; i++) {
-		arrayThreadData[i].whatever = 1;
-	}
-	return i;
-}
+//DWORD PreencheThreadData(TDATA arrayThreadData[], const DWORD numThreads, const TDATA example) {
+//	DWORD i;
+//	for (i = 0; i < numThreads; i++) {
+//		arrayThreadData[i].whatever = 1;
+//	}
+//	return i;
+//}
 
-DWORD LancaThreads(HANDLE arrayThreadHandler[], TDATA arrayThreadData[], DWORD arrayThreadID[], LPTHREAD_START_ROUTINE funcaoThread, const DWORD numThreads) {
-	for (DWORD i = 0; i < numThreads; i++) {
-		arrayThreadHandler[i] = CreateThread(NULL, 0, funcaoThread,
-			(LPVOID)&arrayThreadData[i], CREATE_SUSPENDED, &arrayThreadID[i]);
-
-		if (arrayThreadHandler[i] == NULL) { return GetLastError(); }
-
-	}
-	return 0;
-}
+//DWORD LancaThreads(HANDLE arrayThreadHandler[], TDATA arrayThreadData[], DWORD arrayThreadID[], LPTHREAD_START_ROUTINE funcaoThread, const DWORD numThreads) {
+//	for (DWORD i = 0; i < numThreads; i++) {
+//		arrayThreadHandler[i] = CreateThread(NULL, 0, funcaoThread,
+//			(LPVOID)&arrayThreadData[i], CREATE_SUSPENDED, &arrayThreadID[i]);
+//
+//		if (arrayThreadHandler[i] == NULL) { return GetLastError(); }
+//
+//	}
+//	return 0;
+//}
 
 void PreencheLookupTable(DWORD* lookUpTable, const DWORD tam) {
 	for (DWORD i = 0; i < tam; i++) {

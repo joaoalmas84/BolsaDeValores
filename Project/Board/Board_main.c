@@ -14,7 +14,8 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     DWORD codigoErro;
 
-    DWORD N; // Numero de empresas a listar (tamanho do top)
+    // Numero de empresas a listar (tamanho do top)
+    DWORD N; 
     
     EMPRESA empresas[MAX_EMPRESAS_TO_SHM];
     BOOL continua = TRUE;

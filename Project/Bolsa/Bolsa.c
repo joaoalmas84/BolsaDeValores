@@ -13,7 +13,7 @@
 //|=========================================================================|
 
 DWORD WINAPI ThreadBoard(LPVOID data) {
-	TDATA_BOLSA* ptd = (TDATA_BOLSA*)data;
+	TDATA* ptd = (TDATA*)data;
 
 	BOOL continua = TRUE; // Flag que ira imitar a flag continua na estrutura "TDATA_BOLSA"
 
@@ -81,16 +81,135 @@ DWORD WINAPI ThreadBoard(LPVOID data) {
 }
 
 DWORD WINAPI ThreadGetClients(LPVOID data) {
-	TDATA_BOLSA* ptd = (TDATA_BOLSA*)data;
+	TDATA* ptd = (TDATA*)data;
 
-	HANDLE hPipe = NULL;
+	TDATA_CLIENTS td_clients;
+
+	TD_WRAPPER td_w[NCLIENTES];
+
+	HANDLE hThreads[NCLIENTES];
+
+	HANDLE hSemClientes;
+	HANDLE hPipe;
+	DWORD nclientes;
+	CRITICAL_SECTION cs;
+	BOOL continua;
+	DWORD id;
+
+	EnterCriticalSection(ptd->pCs);
+	nclientes = ptd->nclientes;
+	LeaveCriticalSection(ptd->pCs);
+
+	_tprintf_s(_T("\n[GETCLIENTS] Semáforo '%s' criado... (CreateSemaphore)"), SEM_CLIENTES);
+	hSemClientes = CreateSemaphore(NULL, nclientes, nclientes, SEM_CLIENTES);
+	if (hSemClientes == NULL) {
+		PrintErrorMsg(GetLastError(), _T("CreateSemaphore"));
+		exit(-1);
+	}
+
+	if (!InitializeCriticalSectionAndSpinCount(&cs, 0)) {
+		PrintErrorMsg(GetLastError(), _T("Erro em InitializeCriticalSectionAndSpinCount"));
+		exit(-1);
+	}
+
+	td_clients.continua = TRUE;
+	for (DWORD i = 0; i < NCLIENTES; i++) {
+		td_clients.hPipes[i] = NULL;
+	}
+	td_clients.hSemClientes = hSemClientes;
+	td_clients.pCs = &cs;
+
+	while (1) {
+
+		if (WaitForSingleObject(hSemClientes, 0) == WAIT_TIMEOUT) {
+			_tprintf_s(_T("\n[GETCLIENTS] N.º máximo de ligações atingido..."));
+			WaitForSingleObject(hSemClientes, INFINITE);
+		}
+
+		EnterCriticalSection(ptd->pCs);
+		continua = *ptd->continua;
+		LeaveCriticalSection(ptd->pCs);
+
+		if (!continua) { break; }
+
+		Sleep(1);
+
+		hPipe = CreateNamedPipe(PIPE_NAME, PIPE_ACCESS_DUPLEX,
+			PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE,
+			nclientes, sizeof(PEDIDO_LOGIN), sizeof(RESPOSTA_LOGIN), 1000, NULL);
+		if (hPipe == INVALID_HANDLE_VALUE) {
+			PrintErrorMsg(GetLastError(), _T("CreateNamedPipe"));
+			exit(-1);
+		}
+
+		_tprintf_s(_T("\n[GETCLIENTS] A aguardar por um cliente... (ConnectNamedPipe)\n"));
+		if (!ConnectNamedPipe(hPipe, NULL)) {
+			PrintErrorMsg(GetLastError(), _T("ConnectNamedPipe"));
+			exit(-1);
+		}
+
+		id = getHandlePipeLivre(td_clients);
+		if (id == -1) { exit(-1); }
+
+		EnterCriticalSection(&cs);
+		td_clients.hPipes[id] = hPipe;
+		td_w[id].id = id;
+		td_w[id].ptd = &td_clients;
+		LeaveCriticalSection(&cs);
 
 
-	hPipe = CreateNamedPipe(PIPE_NAME, PIPE_ACCESS_DUPLEX, 
-		PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, 
-		ptd->nClientes, sizeof(PEDIDO_LOGIN), sizeof(RESPOSTA_LOGIN), 1000, NULL);
+		hThreads[id] = CreateThread(NULL, 0, ThreadClient, (LPVOID)&td_w[id], 0, NULL);
+		if (hThreads[id] == NULL) {
+			PrintErrorMsg(GetLastError(), _T("CreateThread"));
+			exit(-1);
+		}
+	}
 
+	for (DWORD i = 0; i < NCLIENTES; i++) {
+		if (td_clients.hPipes[i] != NULL) {
+			WaitForSingleObject(hThreads[i], INFINITE);
+			CloseHandle(hThreads[i]);
+		}
+	}
 
+	DeleteCriticalSection(&cs);
+
+	CloseHandle(hSemClientes);
+
+	ExitThread(6);
+}
+
+DWORD WINAPI ThreadClient(LPVOID data) {
+	TD_WRAPPER* ptd_w = (TD_WRAPPER*)data;
+
+	HANDLE hEv_Read;
+	OVERLAPPED ov;
+
+	DWORD id;
+
+	HANDLE hPipes[NCLIENTES];
+
+	hEv_Read = CreateEvent(NULL, TRUE, FALSE, NULL);
+	if (hEv_Read == NULL) {
+		PrintErrorMsg(GetLastError(), _T("CreateEvent"));
+		exit(-1);
+	}
+
+	ZeroMemory(&ov, sizeof(OVERLAPPED));
+	ov.hEvent = hEv_Read;
+
+	EnterCriticalSection(ptd_w->ptd->pCs);
+	id = ptd_w->id;
+	for (DWORD i = 0; i < NCLIENTES; i++) {
+		hPipes[i] = ptd_w->ptd->hPipes[i];
+	}
+	LeaveCriticalSection(ptd_w->ptd->pCs);
+
+	_tprintf_s(_T("\n\n[THREAD_CLIENTE - N.º%d] Viva! Ligação estabelecida...\n"), id);
+
+	while (1) {
+	
+	}
 
 	ExitThread(6);
 }
@@ -99,7 +218,7 @@ DWORD WINAPI ThreadGetClients(LPVOID data) {
 //|===============================| Comandos |===============================|
 //|==========================================================================|
 
-void ExecutaComando(const CMD comando, TDATA_BOLSA* threadData) {
+void ExecutaComando(const CMD comando, TDATA* threadData) {
 	TCHAR mensagem[SMALL_TEXT];
 
 	// Apagar depois
@@ -135,7 +254,7 @@ void ExecutaComando(const CMD comando, TDATA_BOLSA* threadData) {
 	}
 }
 
-BOOL ADDC(const CMD comando, TDATA_BOLSA* threadData, TCHAR* mensagem) {
+BOOL ADDC(const CMD comando, TDATA* threadData, TCHAR* mensagem) {
 	DWORD numAcoes = _tstoi(comando.Args[2]);
 	DOUBLE preco = _tcstod(comando.Args[3], NULL);
 	
@@ -181,13 +300,13 @@ BOOL ADDC(const CMD comando, TDATA_BOLSA* threadData, TCHAR* mensagem) {
 	return TRUE;
 }
 
-void LISTC(TDATA_BOLSA* threadData) {
+void LISTC(TDATA* threadData) {
 	EnterCriticalSection(threadData->pCs);
 	PrintEmpresas(threadData->empresas, *threadData->numEmpresas);
 	LeaveCriticalSection(threadData->pCs);
 }
 
-BOOL STOCK(const CMD comando, TDATA_BOLSA* threadData, TCHAR* mensagem) {
+BOOL STOCK(const CMD comando, TDATA* threadData, TCHAR* mensagem) {
 	DOUBLE preco = _tcstod(comando.Args[2], NULL);
 	DWORD numEmpresas;
 	DWORD i;
@@ -218,7 +337,7 @@ BOOL STOCK(const CMD comando, TDATA_BOLSA* threadData, TCHAR* mensagem) {
 	}
 }
 
-void USERS(TDATA_BOLSA* threadData) {
+void USERS(TDATA* threadData) {
 	EnterCriticalSection(threadData->pCs);
 	PrintUsers(threadData->users, *threadData->numUsers);
 	LeaveCriticalSection(threadData->pCs);
@@ -228,7 +347,7 @@ void PAUSE() {
 
 }
 
-void CLOSE(TDATA_BOLSA* threadData) {
+void CLOSE(TDATA* threadData) {
 	EnterCriticalSection(threadData->pCs);
 	*threadData->continua = FALSE;
 	LeaveCriticalSection(threadData->pCs);
@@ -608,4 +727,18 @@ int ComparaEmpresas(const void* a, const void* b) {
 	if (empresa1->preco < empresa2->preco) return 1;
 	if (empresa1->preco > empresa2->preco) return -1;
 	return 0;
+}
+
+DWORD getHandlePipeLivre(const TDATA_CLIENTS threadData) {
+	HANDLE hPipes[NCLIENTES];
+
+	EnterCriticalSection(threadData.pCs);
+	CopyMemory(hPipes, threadData.hPipes, sizeof(hPipes));
+	LeaveCriticalSection(threadData.pCs);
+
+	for (DWORD i = 0; i < NCLIENTES; i++) {
+		if (hPipes[i] == NULL) { return i; }
+	}
+
+	return -1;
 }

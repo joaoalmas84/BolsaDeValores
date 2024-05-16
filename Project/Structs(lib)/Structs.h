@@ -13,6 +13,7 @@
 #define SHM_EVENT _T("SHM_EVENT")			// nome do evento que avisa a board
 #define SHM_MUTEX _T("SHM_MUTEX")			// nome do mutex utilizado pela bolsa e pela board
 #define SEM_BOLSA _T("SEM_BOLSA")			// nome do semaforo que impede que haja mais que um processo bolsa em simultaneo
+#define SEM_CLIENTES _T("SEM_CLIENTES")		// nome do semaforo que regula o N.º de processos cliente em execução
 #define PIPE_NAME _T("\\\\.\\pipe\\comunicacao")	// nome do named pipe utilizado na comunicacao Cliente <-> Blosa
 
 // Valores Constantes
@@ -40,11 +41,6 @@
 //|============================================================================|
 //|===============================| Estruturas |===============================|
 //|============================================================================|
-
-// Apagar se nao for necessario
-typedef struct {
-	int whatever;
-} TDATA;
 
 // Estrutura que representa uma Empresa
 typedef struct {

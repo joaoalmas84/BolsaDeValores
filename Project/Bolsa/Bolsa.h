@@ -11,7 +11,7 @@
 
 // Thread Data - Processo Bolsa
 typedef struct {
-	const DWORD nClientes;	// Numero de clientes que podem estar ligados em simultaneo
+	DWORD nclientes;	// Numero de clientes que podem estar ligados em simultaneo
 
 	BOOL* continua;			// Ponteiro para a flag continua localizada na funcao main 
 
@@ -24,7 +24,24 @@ typedef struct {
 	HANDLE hEvent_Board;	// Evento para avisar a Board de que a informacao foi atualizada
 	CRITICAL_SECTION* pCs;	// Ponteiro para a Critical Section que protege alteracoes as variaveis 
 							//	acima declaradas localizada na funcao main
-} TDATA_BOLSA;
+} TDATA;
+
+typedef struct {
+	BOOL continua;
+
+	HANDLE hPipes[NCLIENTES];
+	HANDLE hSemClientes;
+
+	HANDLE hEv_Conn; // Evento do overlap do connect (Ainda não está a ser utilizado, será necessário para o shutdown)
+
+	CRITICAL_SECTION* pCs;
+} TDATA_CLIENTS;
+
+// Thread Data - ThreadClient
+typedef struct {
+	DWORD id;
+	TDATA_CLIENTS* ptd;
+} TD_WRAPPER;
 
 //|=========================================================================|
 //|===============================| Threads |===============================|
@@ -42,25 +59,25 @@ DWORD WINAPI ThreadClient(LPVOID data);
 
 void ExecutaComando(
 	const CMD comando, 
-	TDATA_BOLSA* threadData);
+	TDATA* threadData);
 
 BOOL ADDC(
 	const CMD comando, 
-	TDATA_BOLSA* threadData, 
+	TDATA* threadData,
 	TCHAR* mensagem);
 
-void LISTC(TDATA_BOLSA* threadData);
+void LISTC(TDATA* threadData);
 
 BOOL STOCK(
 	const CMD comando, 
-	TDATA_BOLSA* threadData,
+	TDATA* threadData,
 	TCHAR* mensagem);
 
-void USERS(TDATA_BOLSA* threadData);
+void USERS(TDATA* threadData);
 
 void PAUSE();
 
-void CLOSE(TDATA_BOLSA* threadData);
+void CLOSE(TDATA* threadData);
 
 //|===============================================================================================|
 //|===============================| Ficheiros de Dados - Empresas |===============================|
@@ -137,3 +154,5 @@ void InicializaUsers(USER* users);
 int ComparaEmpresas(
 	const void* a, 
 	const void* b);
+
+DWORD getHandlePipeLivre(const TDATA_CLIENTS threadData);
