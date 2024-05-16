@@ -130,7 +130,8 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 
 
 		// Verificar o tamanho da janela para ser responsivo e dividir para colocar 
-		// a imagem do gráfico no meio e das barras.		GetClientRect(hWnd, &rect);
+		// a imagem do gráfico no meio e das barras.		
+		GetClientRect(hWnd, &rect);
 		xBitmap = (rect.right / 2) - (bmp[0].bmWidth / 2);
 		yBitmap = (rect.bottom / 2) - (bmp[0].bmHeight / 2);
 

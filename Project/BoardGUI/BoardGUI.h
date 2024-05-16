@@ -8,12 +8,14 @@
 #include "resource.h"
 #include "Structs.h"
 
+// Número máximo de empresas no gráfico.
 #define MAX_EMPRESAS_BoardGUI 10
+// Número mínimo de empresas no gráfico.
 #define MINIMO_EMPRESAS 0
 #define MAX_DWORD 4294967295
 
 
-
+//Struct para informação pela janela principal.
 typedef struct {
 	CRITICAL_SECTION cs;
 	CRITICAL_SECTION csInterfase;
@@ -26,6 +28,8 @@ typedef struct {
 
 }DATA_GLOBAL;
 
+
+// Struct para a thread que recebe informações.
 typedef struct {
 	CRITICAL_SECTION* cs;
 	HWND hWnd;

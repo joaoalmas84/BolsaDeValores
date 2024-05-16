@@ -2,7 +2,6 @@
 #include <tchar.h>
 #include <stdlib.h>
 
-#include "pch.h"
 #include "Commands.h"
 #include "Utils.h"
 
@@ -37,7 +36,8 @@ BOOL ValidaCmd(const TCHAR* frase, CMD* comando, TCHAR* msg, BOOL bolsa) {
 		if (!CheckNumArgs(*comando, Args_Comandos_Bolsa, msg)) { return FALSE; }
 
 		if (!CheckArgsConsistency_Bolsa(*comando, msg)) { return FALSE; }
-	} else {
+	}
+	else {
 		if (!CheckName(*comando, Nomes_Comandos_Cliente, &comando->Index, msg)) { return FALSE; }
 
 		if (!CheckNumArgs(*comando, Args_Comandos_Cliente, msg)) { return FALSE; }
@@ -104,28 +104,31 @@ BOOL CheckArgsConsistency_Bolsa(const CMD cmd, TCHAR* msg) {
 	case 0:
 		_stprintf_s(msg, TAM, _T("No comando '%s' os argumentos n.º 2 e 3 são valores numéricos maiores que 0."), cmd.Nome);
 
-		if (IsInteger(cmd.Args[2]) && (IsDouble(cmd.Args[3]) || IsInteger(cmd.Args[2])) ) { 
+		if (IsInteger(cmd.Args[2]) && (IsDouble(cmd.Args[3]) || IsInteger(cmd.Args[2]))) {
 			if (_ttoi(cmd.Args[2]) > 0 && _tcstod(cmd.Args[3], 0) > 0) { return TRUE; }
 			else { return FALSE; }
-		} else { return FALSE; }
+		}
+		else { return FALSE; }
 
 		break;
 	case 2:
 		_stprintf_s(msg, TAM, _T("No comando '%s' o argumento n.º 2 é um valor numérico maior que 0."), cmd.Nome);
 
-		if (IsInteger(cmd.Args[2]) || IsDouble(cmd.Args[2])) { 
-			if (_tcstod(cmd.Args[3], 0) > 0) { return TRUE; }
+		if (IsInteger(cmd.Args[2]) || IsDouble(cmd.Args[2])) {
+			if (_tcstod(cmd.Args[2], 0) > 0) { return TRUE; }
 			else { return FALSE; }
-		} else { return FALSE; }
+		}
+		else { return FALSE; }
 
 		break;
 	case 4:
 		_stprintf_s(msg, TAM, _T("No comando '%s' o argumento n.º 1 é um valor numérico inteiro maior que 0"), cmd.Nome);
 
-		if (IsInteger(cmd.Args[1])) { 
+		if (IsInteger(cmd.Args[1])) {
 			if (_ttoi(cmd.Args[1]) > 0) { return TRUE; }
 			else { return FALSE; }
-		} else { return FALSE; }
+		}
+		else { return FALSE; }
 
 		break;
 	default:
@@ -140,10 +143,11 @@ BOOL CheckArgsConsistency_Cliente(const CMD cmd, TCHAR* msg) {
 	case 3:
 		_stprintf_s(msg, TAM, _T("No comando '%s' o argumento n.º 2 é um inteiro"), cmd.Nome);
 
-		if (IsInteger(cmd.Args[2])) { 
+		if (IsInteger(cmd.Args[2])) {
 			if (_ttoi(cmd.Args[2]) > 0) { return TRUE; }
 			else { return FALSE; }
-		} else { return FALSE; }
+		}
+		else { return FALSE; }
 
 		break;
 	default:
