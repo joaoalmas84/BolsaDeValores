@@ -9,8 +9,9 @@
 typedef struct {
 	BOOL* continua;			// Ponteiro para a flag continua localizada na funcao main 
 	
-	
 	HANDLE hPipe;			// HANDLE do pipe
+	HANDLE hThread;			// HANDLE para thread main para possibilitar interromper operações I/O
+
 	CRITICAL_SECTION* pCs;	// Ponteiro para a Critical Section que protege alteracoes as variaveis 
 							//	acima declaradas localizada na funcao main
 } TDATA_CLIENTE;
@@ -21,21 +22,45 @@ typedef struct {
 
 DWORD WINAPI ThreadRead(LPVOID data);
 
+//|==============================================================================================|
+//|===============================| Comunicacao Bolsa -> Cliente |===============================|
+//|==============================================================================================|
+
+BOOL GereRespostas(
+	const DWORD codigo,
+	TDATA_CLIENTE* threadData);
+
+BOOL GetRespostaLogin(const HANDLE hPipe);
+
 //|==========================================================================|
 //|===============================| Comandos |===============================|
 //|==========================================================================|
 
-void ExecutaComando(const CMD comando);
+BOOL ExecutaComando(
+	const CMD comando, 
+	TDATA_CLIENTE* ptd);
 
-void LOGIN();
+BOOL LOGIN(
+	const CMD comando, 
+	const TDATA_CLIENTE threadData);
 
-void LISTC();
+BOOL LISTC(
+	const CMD comando, 
+	const TDATA_CLIENTE threadData);
 
-void BUY();
+BOOL BUY(
+	const CMD comando, 
+	const TDATA_CLIENTE threadData);
 
-void SELL();
+BOOL SELL(
+	const CMD comando, 
+	const TDATA_CLIENTE threadData);
 
-void BALANCE();
+BOOL BALANCE(
+	const CMD comando, 
+	const TDATA_CLIENTE threadData);
 
-void EXIT();
+BOOL EXIT(
+	const CMD comando, 
+	const TDATA_CLIENTE threadData);
 

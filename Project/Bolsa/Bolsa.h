@@ -11,7 +11,7 @@
 
 // Thread Data - Processo Bolsa
 typedef struct {
-	DWORD nclientes;	// Numero de clientes que podem estar ligados em simultaneo
+	DWORD nclientes;		// Numero de clientes que podem estar ligados em simultaneo
 
 	BOOL* continua;			// Ponteiro para a flag continua localizada na funcao main 
 
@@ -24,23 +24,17 @@ typedef struct {
 	HANDLE hEvent_Board;	// Evento para avisar a Board de que a informacao foi atualizada
 	CRITICAL_SECTION* pCs;	// Ponteiro para a Critical Section que protege alteracoes as variaveis 
 							//	acima declaradas localizada na funcao main
-} TDATA;
 
-typedef struct {
-	BOOL continua;
-
+	// Gestao de clientes
 	HANDLE hPipes[NCLIENTES];
 	HANDLE hSemClientes;
 
-	HANDLE hEv_Conn; // Evento do overlap do connect (Ainda não está a ser utilizado, será necessário para o shutdown)
-
-	CRITICAL_SECTION* pCs;
-} TDATA_CLIENTS;
+} TDATA_BOLSA;
 
 // Thread Data - ThreadClient
 typedef struct {
 	DWORD id;
-	TDATA_CLIENTS* ptd;
+	TDATA_BOLSA* ptd;
 } TD_WRAPPER;
 
 //|=========================================================================|
@@ -53,31 +47,93 @@ DWORD WINAPI ThreadGetClients(LPVOID data);
 
 DWORD WINAPI ThreadClient(LPVOID data);
 
+//|==============================================================================================|
+//|===============================| Comunicacao Cliente -> Bolsa |===============================|
+//|==============================================================================================|
+
+BOOL GerePedidos(
+	const DWORD id, 
+	const DWORD codigo, 
+	TDATA_BOLSA* threadData);
+
+BOOL GetLogin(
+	const DWORD id, 
+	const HANDLE hPipe, 
+	_LOGIN* login);
+
+
+BOOL GetCompra(
+	const DWORD id,
+	const HANDLE hPipe);
+
+BOOL GetVenda(
+	const DWORD id,
+	const HANDLE hPipe);
+
+//|========================================================================================|
+//|===============================| Validação de operações |===============================|
+//|========================================================================================|
+
+RESPOSTA_LOGIN ValidaLogin(
+	TDATA_BOLSA* threadData,
+	const _LOGIN login);
+
+BOOL ValidaCompra(
+	TDATA_BOLSA* threadData,
+	const COMPRA compra);
+
+BOOL ValidaVenda(
+	TDATA_BOLSA* threadData,
+	const VENDA venda);
+
+//|==============================================================================================|
+//|===============================| Comunicacao Bolsa -> Cliente |===============================|
+//|==============================================================================================|
+
+BOOL SendRespostaLogin(
+	const HANDLE hPipe, 
+	const DWORD id, 
+	const RESPOSTA_LOGIN r_login);
+
+BOOL SendRespostaLista();
+
+BOOL SendRespostaCompra();
+
+BOOL SendRespostaVenda();
+
+BOOL SendRespostaBalance();
+
 //|==========================================================================|
 //|===============================| Comandos |===============================|
 //|==========================================================================|
 
-void ExecutaComando(
+BOOL ExecutaComando(
 	const CMD comando, 
-	TDATA* threadData);
+	TDATA_BOLSA* threadData,
+	TCHAR* errorMsg);
 
 BOOL ADDC(
 	const CMD comando, 
-	TDATA* threadData,
+	TDATA_BOLSA* threadData,
 	TCHAR* mensagem);
 
-void LISTC(TDATA* threadData);
+void LISTC(TDATA_BOLSA* threadData);
 
 BOOL STOCK(
 	const CMD comando, 
-	TDATA* threadData,
+	TDATA_BOLSA* threadData,
 	TCHAR* mensagem);
 
-void USERS(TDATA* threadData);
+void USERS(TDATA_BOLSA* threadData);
 
 void PAUSE();
 
-void CLOSE(TDATA* threadData);
+void CLOSE(TDATA_BOLSA* threadData);
+
+void BroadcastClose(
+	TDATA_BOLSA* threadData, 
+	HANDLE hPipes[]);
+
 
 //|===============================================================================================|
 //|===============================| Ficheiros de Dados - Empresas |===============================|
@@ -155,4 +211,4 @@ int ComparaEmpresas(
 	const void* a, 
 	const void* b);
 
-DWORD getHandlePipeLivre(const TDATA_CLIENTS threadData);
+DWORD getHandlePipeLivre(TDATA_BOLSA* ptd);

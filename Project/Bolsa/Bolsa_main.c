@@ -31,7 +31,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 	BOOL continua = TRUE;				
 
 	// Variáveis relativas às Threads
-	TDATA threadData;
+	TDATA_BOLSA threadData;
 	HANDLE hThread[3 + MAX_USERS];
 	DWORD threadId[3 + MAX_USERS];
 	HANDLE hEventBoard;	// Evento para avisar a Board de que a informacao foi atualizada
@@ -113,6 +113,11 @@ int _tmain(int argc, TCHAR* argv[]) {
 	threadData.hEvent_Board = hEventBoard;
 	threadData.pCs = &cs;
 
+	threadData.hSemClientes = NULL;
+	for (DWORD i = 0; i < NCLIENTES; i++) {
+		threadData.hPipes[i] = NULL;
+	}
+
 	if (FileExists(FILE_EMPRESAS)) {
 		if (!CarregaEmpresas(empresas, &numEmpresas)) {		
 			_tprintf_s(_T("\n(Função CarregaEmpresas)"));
@@ -179,15 +184,17 @@ int _tmain(int argc, TCHAR* argv[]) {
 		return 1;
 	}
 
-	system("cls");
+	//system("cls");
 
 	while (1) {
 		if (!GetCmd(input)) { continue; }
 
 		if (!ValidaCmd(input, &comando, errorMsg, TRUE)) {
-			_tprintf(_T("\n[ERRO]: '%s'."), errorMsg);
+			_tprintf(_T("\n[ERRO] %s."), errorMsg);
 		} else {
-			ExecutaComando(comando, &threadData);
+			if (!ExecutaComando(comando, &threadData, errorMsg)) {
+				_tprintf(_T("\n[ERRO] %s."), errorMsg);
+			}			
 			if (comando.Index == 5) { break; }
 		}
 	}

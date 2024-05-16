@@ -26,17 +26,21 @@
 #define MAX_POSSE_EMPRESAS 5	// um utilizador nao pode ter acoes em mais do que 5 empresas diferentes
 
 // Comunicacao NamedPipes:
-// Cliente -> Board (Pedido)
+// Cliente -> Bolsa (Pedido)
 #define P_LOGIN 1	// <- maior
-#define P_COMPRA 2
-#define P_VENDA 3
-#define P_LISTA 4
+#define P_LISTA 2
+#define P_COMPRA 3
+#define P_VENDA 4
+#define P_BALANCE 5
+#define P_EXIT 6
 
-// Board -> Cliente (Resposta)
+// Bolsa -> Cliente (Resposta)
 #define R_LOGIN 1	// <- maior
-#define R_COMPRA 2
-#define R_VENDA 3
-#define R_LISTA 4
+#define R_LISTA 2
+#define R_COMPRA 3
+#define R_VENDA 4
+#define R_BALANCE 5
+#define R_CLOSE 6
 
 //|============================================================================|
 //|===============================| Estruturas |===============================|
@@ -50,14 +54,14 @@ typedef struct {
 } EMPRESA;
 
 typedef struct {
-	TCHAR empresasNomes[MAX_POSSE_EMPRESAS][SMALL_TEXT];// array com os nomes empresas das quais este User possui acoes
-	DWORD acoes[MAX_POSSE_EMPRESAS];					// acoes que possui de cada empresa
+	TCHAR empresasNomes[SMALL_TEXT];// array com os nomes empresas das quais este User possui acoes
+	DWORD acoes;					// acoes que possui de cada empresa
 } POSSE_EMPRESA;
 
 // Estrutura que representa a carteira do User
 typedef struct {
 	POSSE_EMPRESA posse_empresas[MAX_POSSE_EMPRESAS];	// representacao simplista das empresas dentro da carteira
-	DWORD numEmpresas;									// numero de empresas das quais este User possui acoes
+	DWORD numEmpresas;				// numero de empresas das quais este User possui acoes
 	DOUBLE saldo;
 } CARTEIRA;
 
@@ -75,12 +79,12 @@ typedef struct {
 } SHM;
 
 //|==============================================================================================|
-//|===============================| Comunicacao Cliente -> Board |===============================|
+//|===============================| Comunicacao Cliente -> Bolsa |===============================|
 //|==============================================================================================|
 
 // Pedido de Login
 typedef struct {
-	TCHAR name[SMALL_TEXT];
+	TCHAR nome[SMALL_TEXT];
 	TCHAR pass[SMALL_TEXT];
 } _LOGIN;
 
@@ -88,6 +92,9 @@ typedef struct {
 	DWORD codigo; // <- P_LOGIN
 	_LOGIN login;
 } PEDIDO_LOGIN;
+
+// Pedido de Lista
+// basta enviar codigo = P_LISTA
 
 // Pedido de Compra
 typedef struct {
@@ -111,19 +118,27 @@ typedef struct {
 	VENDA venda;
 } PEDIDO_VENDA;
 
-// Pedido de Lista
-// basta enviar codigo = P_LISTA
+// Pedido de Balance
+// basta enviar codigo = P_BALANCE
+
+// Pedido de Exit
+// basta enviar codigo = P_EXIT
 
 //|==============================================================================================|
-//|===============================| Comunicacao Board -> Cliente |===============================|
+//|===============================| Comunicacao Bolsa -> Cliente |===============================|
 //|==============================================================================================|
 
 // Resposta Login
 typedef struct {
 	DWORD codigo; // <- R_LOGIN
 	BOOL resultado;
-	USER dados;
 } RESPOSTA_LOGIN;
+
+// Resposta Lista
+typedef struct {
+	DWORD codigo; // <- R_LISTA
+	TCHAR lista[BIG_TEXT];
+} RESPOSTA_LISTA;
 
 // Resposta Compra
 typedef struct {
@@ -137,8 +152,8 @@ typedef struct {
 	BOOL resultado;
 } RESPOSTA_VENDA;
 
-// Resposta Lista
+// Resposta BALANCE
 typedef struct {
-	DWORD codigo; // <- R_LISTA
-	TCHAR lista[BIG_TEXT];
-} RESPOSTA_LISTA;
+	DWORD codigo; // <- R_BALANCE
+	BOOL resultado;
+} RESPOSTA_BALANCE;
