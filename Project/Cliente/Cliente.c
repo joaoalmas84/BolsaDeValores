@@ -91,8 +91,14 @@ BOOL GereRespostas(const DWORD codigo, TDATA_CLIENTE* threadData) {
 		case R_LISTA:
 			break;
 		case R_COMPRA:
+			GetRespostaLogin(threadData->hPipe) ?
+				_tprintf_s(_T("\n[CLIENTE] A compra foi realizada com sucesso...")) :
+				_tprintf_s(_T("\n[CLIENTE] A compra não foi realizada..."));
 			break;
 		case R_VENDA:
+			GetRespostaLogin(threadData->hPipe) ?
+				_tprintf_s(_T("\n[CLIENTE] A venda foi realizada com sucesso...")) :
+				_tprintf_s(_T("\n[CLIENTE] A venda não foi realizada..."));
 			break;
 		case R_BALANCE:
 			break;
@@ -106,6 +112,19 @@ BOOL GereRespostas(const DWORD codigo, TDATA_CLIENTE* threadData) {
 }
 
 BOOL GetRespostaLogin(const HANDLE hPipe) {
+	BOOL resultado;
+	DWORD nbytes;
+
+	if (!ReadFile(hPipe, &resultado, sizeof(BOOL), &nbytes, NULL)) {
+		PrintErrorMsg(GetLastError(), _T("[CLIENTE] - ReadFile"));
+		return FALSE;
+	}
+
+	return resultado;
+
+}
+
+BOOL GetRespostaCompra(const HANDLE hPipe) {
 	BOOL resultado;
 	DWORD nbytes;
 

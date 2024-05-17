@@ -261,6 +261,7 @@ BOOL GerePedidos(TD_WRAPPER* threadData, const DWORD codigo) {
 
 	switch (codigo) {
 		case P_LOGIN:
+		{
 			if (!GetLogin(threadData, &login)) { return FALSE; };
 
 			r_login = ValidaLogin(threadData, login);
@@ -271,34 +272,62 @@ BOOL GerePedidos(TD_WRAPPER* threadData, const DWORD codigo) {
 
 			if (!SendRespostaLogin(threadData, r_login)) { return FALSE; }
 			break;
-
+		}
 		case P_LISTA:
-
+		{
 			_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] LISTA (%d bytes)..."), threadData->id, (DWORD)sizeof(DWORD));
 			break;
-
+		}
 		case P_COMPRA: 
+		{
 			_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] COMPRA (%d bytes)..."), threadData->id, (DWORD)sizeof(DWORD));
-			GetCompra(threadData, &compra);
-			SendRespostaCompra();
-			break;
+			
+			if (!GetCompra(threadData, &compra)) { return FALSE; }
+			r_compra.codigo = R_COMPRA;
+			EnterCriticalSection(threadData->ptd->pCs);
+			r_compra.resultado = ValidaCompra(threadData, compra);
+			LeaveCriticalSection(threadData->ptd->pCs);
+			if (r_compra.resultado) {
+				_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] O '%s' comprou '%d' ações da empresa '%s'..."), threadData->id, threadData->nomeUser, compra.numAcoes, compra.nomeEmpresa);
+			}
+			else {
+				_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] A compra de '%d' ações da empresa '%s' pelo usuário '%s' falhou..."), threadData->id, compra.numAcoes, compra.nomeEmpresa, threadData->nomeUser);
+			}
 
+
+			SendRespostaCompra(threadData, r_compra);
+			break;
+		}
 		case P_VENDA:
+		{
 			_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] VENDA (%d bytes)..."), threadData->id, (DWORD)sizeof(DWORD));
-			GetVenda(threadData, &venda);
-			SendRespostaVenda();
-			break;
+			if(!GetVenda(threadData, &venda)) { return FALSE; }
+			r_venda.codigo = R_VENDA;
+			EnterCriticalSection(threadData->ptd->pCs);
+			r_venda.resultado = ValidaVenda(threadData, venda);
+			LeaveCriticalSection(threadData->ptd->pCs);
+			if (r_venda.resultado) {
+				_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] O '%s' vendeu '%d' ações da empresa '%s'..."), threadData->id, threadData->nomeUser, venda.numAcoes, venda.nomeEmpresa);
+			}
+			else {
+				_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] A venda de '%d' ações da empresa '%s' pelo usuário '%s' falhou..."), threadData->id, venda.numAcoes, venda.nomeEmpresa, threadData->nomeUser);
+			}
 
+			SendRespostaVenda(threadData, r_venda);
+			break;
+		}
 		case P_BALANCE:
+		{
 			_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] BALANCE (%d bytes)..."), threadData->id, (DWORD)sizeof(DWORD));
 			break;
-
+		}
 		case P_EXIT:
+		{
 			_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] EXIT (%d bytes)..."), threadData->id, (DWORD)sizeof(DWORD));
 
 			return FALSE;
 			break;
-
+		}
 		default:
 			break;
 	}
@@ -326,7 +355,7 @@ BOOL GetCompra(const TD_WRAPPER* threadData, COMPRA* compra) {
 	DWORD nbytes;
 	TCHAR errorMsg[SMALL_TEXT];
 
-	if (!ReadFile(threadData->hPipe, &compra, sizeof(COMPRA), &nbytes, NULL)) {
+	if (!ReadFile(threadData->hPipe, compra, sizeof(COMPRA), &nbytes, NULL)) {
 		_stprintf_s(errorMsg, SMALL_TEXT, _T("[THREAD_CLIENTE - N.º%d] - ReadFile"), threadData->id);
 		PrintErrorMsg(GetLastError(), errorMsg);
 		return FALSE;
@@ -342,7 +371,7 @@ BOOL GetVenda(const TD_WRAPPER* threadData, VENDA* venda) {
 	DWORD nbytes;
 	TCHAR errorMsg[SMALL_TEXT];
 
-	if (!ReadFile(threadData->hPipe, &venda, sizeof(VENDA), &nbytes, NULL)) {
+	if (!ReadFile(threadData->hPipe, venda, sizeof(VENDA), &nbytes, NULL)) {
 		_stprintf_s(errorMsg, SMALL_TEXT, _T("[THREAD_CLIENTE - N.º%d] - ReadFile"), threadData->id);
 		PrintErrorMsg(GetLastError(), errorMsg);
 		return FALSE;
@@ -386,13 +415,124 @@ RESPOSTA_LOGIN ValidaLogin(TD_WRAPPER* threadData, const _LOGIN login) {
 	return r_login;
 }
 
+USER* getUser(const TCHAR* Nome, TDATA_BOLSA* dados) {
+
+	for (DWORD i = 0; i < *(dados->numUsers); i++) {
+		if (_tcscmp(ToLowerString(dados->users[i].nome), ToLowerString(Nome)) == 0) {
+			return &dados->users[i];
+		}
+	}
+
+	return NULL;
+}
+
 BOOL ValidaCompra(TD_WRAPPER* threadData, const COMPRA compra) {
 
-	return FALSE;
+	if (threadData == NULL) { return FALSE; }
+
+	BOOL empresaEncontrada = FALSE, empresaJaPossuida = FALSE;
+	DWORD indiceEmpresa = 0, indiceEmpresaUsuario = 0;
+	DOUBLE precoTotalCompra = 0;
+	
+	USER* usuario = getUser(threadData->nomeUser, threadData->ptd);
+
+	if (usuario == NULL || usuario->carteira.numEmpresas >= 5) {
+		return FALSE;
+	}
+
+	for (indiceEmpresa = 0; indiceEmpresa < *(threadData->ptd->numEmpresas); indiceEmpresa++) {
+		if (_tcscmp(ToLowerString(threadData->ptd->empresas[indiceEmpresa].nome), ToLowerString(compra.nomeEmpresa)) == 0) {
+			empresaEncontrada = TRUE;
+			break;
+		}
+	}
+
+	if (!empresaEncontrada) {
+		return FALSE;
+	}
+
+	precoTotalCompra = compra.numAcoes * threadData->ptd->empresas[indiceEmpresa].preco;
+
+	if (usuario->carteira.saldo < precoTotalCompra || threadData->ptd->empresas[indiceEmpresa].numAcoes < compra.numAcoes) {
+		return FALSE;
+	}
+
+	for (indiceEmpresaUsuario = 0; indiceEmpresaUsuario < usuario->carteira.numEmpresas; indiceEmpresaUsuario++) {
+		if (_tcscmp(ToLowerString(usuario->carteira.posse_empresas[indiceEmpresaUsuario].empresasNomes), ToLowerString(compra.nomeEmpresa)) == 0) {
+			empresaJaPossuida = TRUE;
+			break;
+		}
+	}
+
+	if (empresaJaPossuida) {
+		threadData->ptd->empresas[indiceEmpresa].numAcoes -= compra.numAcoes;
+		usuario->carteira.saldo -= precoTotalCompra;
+		usuario->carteira.posse_empresas[indiceEmpresaUsuario].acoes += compra.numAcoes;
+	}
+	else {
+		_tcscpy_s(usuario->carteira.posse_empresas[usuario->carteira.numEmpresas].empresasNomes, SMALL_TEXT, threadData->ptd->empresas[indiceEmpresa].nome);
+		threadData->ptd->empresas[indiceEmpresa].numAcoes -= compra.numAcoes;
+		usuario->carteira.saldo -= precoTotalCompra;
+		usuario->carteira.posse_empresas[usuario->carteira.numEmpresas].acoes = compra.numAcoes;
+		usuario->carteira.numEmpresas++;
+	}
+
+	SetEvent(threadData->ptd->hEvent_Board);
+	ResetEvent(threadData->ptd->hEvent_Board);
+
+	return TRUE;
 }
 
 BOOL ValidaVenda(TD_WRAPPER* threadData, const VENDA venda) {
-	return FALSE;
+
+	if (threadData == NULL) { return FALSE; }
+
+	DWORD indiceEmpresaUsuario = 0, indiceEmpresaBolsa = 0;
+	BOOL empresaEncontradaBolsa = FALSE, empresaEncontradaUsuario = FALSE;
+
+
+	USER* usuario = getUser(threadData->nomeUser, threadData->ptd);
+
+	if (usuario == NULL) {
+		return FALSE;
+	}
+
+	for (indiceEmpresaUsuario = 0; indiceEmpresaUsuario < usuario->carteira.numEmpresas; indiceEmpresaUsuario++) {
+		if (_tcscmp(ToLowerString(usuario->carteira.posse_empresas[indiceEmpresaUsuario].empresasNomes), ToLowerString(venda.nomeEmpresa)) == 0) {
+			empresaEncontradaUsuario = TRUE;
+			break;
+		}
+	}
+	if (!empresaEncontradaUsuario) {
+		return FALSE;
+	}
+
+	for (indiceEmpresaBolsa = 0; indiceEmpresaBolsa < *(threadData->ptd->numEmpresas); indiceEmpresaBolsa++) {
+		if (_tcscmp(ToLowerString(threadData->ptd->empresas[indiceEmpresaBolsa].nome), ToLowerString(venda.nomeEmpresa)) == 0) {
+			empresaEncontradaBolsa = TRUE;
+			break;
+		}
+	}
+	if (!empresaEncontradaBolsa || usuario->carteira.posse_empresas[indiceEmpresaUsuario].acoes < venda.numAcoes) {
+		return FALSE;
+	}
+
+	usuario->carteira.posse_empresas[indiceEmpresaUsuario].acoes -= venda.numAcoes;
+	threadData->ptd->empresas[indiceEmpresaBolsa].numAcoes += venda.numAcoes;
+	usuario->carteira.saldo += venda.numAcoes * threadData->ptd->empresas[indiceEmpresaBolsa].preco;
+
+
+	if (usuario->carteira.posse_empresas[indiceEmpresaUsuario].acoes <= 0) {
+		for (DWORD i = indiceEmpresaUsuario; (i + 1) < usuario->carteira.numEmpresas; i++) {
+			usuario->carteira.posse_empresas[i] = usuario->carteira.posse_empresas[i + 1];
+		}
+		usuario->carteira.numEmpresas--;
+	}
+
+	SetEvent(threadData->ptd->hEvent_Board);
+	ResetEvent(threadData->ptd->hEvent_Board);
+
+	return TRUE;
 }
 
 //|==============================================================================================|
@@ -436,13 +576,43 @@ BOOL SendAvisoLogin(const TD_WRAPPER* threadData) {
 	return TRUE;
 }
 
-BOOL SendRespostaCompra() {
-	return FALSE;
+BOOL SendRespostaCompra(const TD_WRAPPER* threadData, const RESPOSTA_COMPRA r_compra) {
+	DWORD nbytes, err;
+
+	if (!WriteFile(threadData->hPipe, &r_compra, sizeof(RESPOSTA_COMPRA), &nbytes, NULL)) {
+		err = GetLastError();
+		if (err == ERROR_PIPE_NOT_CONNECTED) {
+			return FALSE;
+		}
+		else {
+			PrintErrorMsg(err, _T("WriteFile"));
+			exit(-1);
+		}
+	}
+	_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] Enviei RESPOSTA_COMPRA (%d bytes)..."),
+		threadData->id, nbytes);
+
+	return TRUE;
 
 }
 
-BOOL SendRespostaVenda() {
-	return FALSE;
+BOOL SendRespostaVenda(const TD_WRAPPER* threadData, const RESPOSTA_VENDA r_venda) {
+	DWORD nbytes, err;
+
+	if (!WriteFile(threadData->hPipe, &r_venda, sizeof(RESPOSTA_VENDA), &nbytes, NULL)) {
+		err = GetLastError();
+		if (err == ERROR_PIPE_NOT_CONNECTED) {
+			return FALSE;
+		}
+		else {
+			PrintErrorMsg(err, _T("WriteFile"));
+			exit(-1);
+		}
+	}
+	_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] Enviei RESPOSTA_VENDA (%d bytes)..."),
+		threadData->id, nbytes);
+
+	return TRUE;
 
 }
 

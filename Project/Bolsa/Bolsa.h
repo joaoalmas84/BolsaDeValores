@@ -98,7 +98,9 @@ BOOL SendRespostaLogin(
 
 BOOL SendRespostaLista();
 
-BOOL SendRespostaCompra();
+BOOL SendRespostaCompra(
+	const TD_WRAPPER* threadData, 
+	const RESPOSTA_COMPRA r_compra);
 
 BOOL SendRespostaVenda();
 
@@ -208,3 +210,5 @@ int ComparaEmpresas(
 	const void* b);
 
 DWORD getHandlePipeLivre(HANDLE hPipes[NCLIENTES]);
+
+USER* getUser(const TCHAR* Nome, TDATA_BOLSA* dados);
