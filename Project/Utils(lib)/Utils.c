@@ -42,7 +42,9 @@ void PrintUsers(const USER users[], const DWORD numUsers) {
 	TCHAR estado[SMALL_TEXT];
 
 	for (DWORD i = 0; i < numUsers; i++) {
-		
+		if (users[i].ligado) { _tcscpy_s(estado, SMALL_TEXT, _T("ligado")); }
+		else { _tcscpy_s(estado, SMALL_TEXT, _T("desligado")); }
+
 		_tprintf_s(_T("\n--------------------------------+"));
 		_tprintf_s(_T("\nNome: %s\nPass: %s\nEstado: %s\nSaldo: %.2f\nN.º de empresas: %d\n"),
 		users[i].nome, users[i].pass, estado, users[i].carteira.saldo, users[i].carteira.numEmpresas);

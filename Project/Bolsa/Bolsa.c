@@ -244,8 +244,6 @@ DWORD WINAPI ThreadClient(LPVOID data) {
 //|==============================================================================================|
 
 BOOL GerePedidos(TD_WRAPPER* threadData, const DWORD codigo) {
-	HANDLE hPipe;
-
 	// Recebe
 	_LOGIN login;
 	COMPRA compra;
@@ -257,21 +255,21 @@ BOOL GerePedidos(TD_WRAPPER* threadData, const DWORD codigo) {
 	RESPOSTA_COMPRA r_compra;
 	RESPOSTA_VENDA r_venda;
 
-	EnterCriticalSection(threadData->ptd->pCs);
-	hPipe = threadData->hPipe;
-	LeaveCriticalSection(threadData->ptd->pCs);
-
 	if (codigo != P_LOGIN && !threadData->ligado) {
-		if (!SendAvisoLogin(hPipe, threadData->id)) { return FALSE; }
+		if (!SendAvisoLogin(threadData)) { return FALSE; }
 	}
 
 	switch (codigo) {
 		case P_LOGIN:
-			if (!GetLogin(threadData->id, hPipe, &login)) { return FALSE; };
+			if (!GetLogin(threadData, &login)) { return FALSE; };
 
 			r_login = ValidaLogin(threadData, login);
 
-			if (!SendRespostaLogin(hPipe, threadData->id, r_login)) { return FALSE; }
+			if (r_login.resultado) {
+				_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] O '%s' ligou-se..."), threadData->id, threadData->nomeUser);
+			}
+
+			if (!SendRespostaLogin(threadData, r_login)) { return FALSE; }
 			break;
 
 		case P_LISTA:
@@ -281,13 +279,13 @@ BOOL GerePedidos(TD_WRAPPER* threadData, const DWORD codigo) {
 
 		case P_COMPRA: 
 			_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] COMPRA (%d bytes)..."), threadData->id, (DWORD)sizeof(DWORD));
-			GetCompra(threadData->id, hPipe);
+			GetCompra(threadData, &compra);
 			SendRespostaCompra();
 			break;
 
 		case P_VENDA:
 			_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] VENDA (%d bytes)..."), threadData->id, (DWORD)sizeof(DWORD));
-			GetVenda(threadData->id, hPipe);
+			GetVenda(threadData, &venda);
 			SendRespostaVenda();
 			break;
 
@@ -308,52 +306,50 @@ BOOL GerePedidos(TD_WRAPPER* threadData, const DWORD codigo) {
 	return TRUE;
 }
 
-BOOL GetLogin(const DWORD id, const HANDLE hPipe, _LOGIN* login) {
+BOOL GetLogin(const TD_WRAPPER* threadData, _LOGIN* login) {
 	DWORD nbytes;
 	TCHAR errorMsg[SMALL_TEXT];
 
-	if (!ReadFile(hPipe, login, sizeof(_LOGIN), &nbytes, NULL)) {
-		_stprintf_s(errorMsg, SMALL_TEXT, _T("[THREAD_CLIENTE - N.º%d] - ReadFile"), id);
+	if (!ReadFile(threadData->hPipe, login, sizeof(_LOGIN), &nbytes, NULL)) {
+		_stprintf_s(errorMsg, SMALL_TEXT, _T("[THREAD_CLIENTE - N.º%d] - ReadFile"), threadData->id);
 		PrintErrorMsg(GetLastError(), errorMsg);
 		return FALSE;
 	}
 
-	_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] Recebi LOGIN (%d bytes)..."), id, nbytes);
+	_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] Recebi LOGIN (%d bytes)..."), threadData->id, nbytes);
 	_tprintf_s(_T("\nlogin.name: '%s'\nlogin.pass: '%s'"), login->nome, login->pass);
 
 	return TRUE;
 }
 
-BOOL GetCompra(const DWORD id, const HANDLE hPipe) {
-	COMPRA compra;
+BOOL GetCompra(const TD_WRAPPER* threadData, COMPRA* compra) {
 	DWORD nbytes;
 	TCHAR errorMsg[SMALL_TEXT];
 
-	if (!ReadFile(hPipe, &compra, sizeof(COMPRA), &nbytes, NULL)) {
-		_stprintf_s(errorMsg, SMALL_TEXT, _T("[THREAD_CLIENTE - N.º%d] - ReadFile"), id);
+	if (!ReadFile(threadData->hPipe, &compra, sizeof(COMPRA), &nbytes, NULL)) {
+		_stprintf_s(errorMsg, SMALL_TEXT, _T("[THREAD_CLIENTE - N.º%d] - ReadFile"), threadData->id);
 		PrintErrorMsg(GetLastError(), errorMsg);
 		return FALSE;
 	}
 
-	_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] Recebi COMPRA (%d bytes)..."), id, nbytes);
-	_tprintf_s(_T("\ncompra.nomeEmpresa: '%s'\ncompra.numAcoes: %d"), compra.nomeEmpresa, compra.numAcoes);
+	_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] Recebi COMPRA (%d bytes)..."), threadData->id, nbytes);
+	_tprintf_s(_T("\ncompra.nomeEmpresa: '%s'\ncompra.numAcoes: %d"), compra->nomeEmpresa, compra->numAcoes);
 
 	return TRUE;
 }
 
-BOOL GetVenda(const DWORD id, const HANDLE hPipe) {
-	VENDA venda;
+BOOL GetVenda(const TD_WRAPPER* threadData, VENDA* venda) {
 	DWORD nbytes;
 	TCHAR errorMsg[SMALL_TEXT];
 
-	if (!ReadFile(hPipe, &venda, sizeof(VENDA), &nbytes, NULL)) {
-		_stprintf_s(errorMsg, SMALL_TEXT, _T("[THREAD_CLIENTE - N.º%d] - ReadFile"), id);
+	if (!ReadFile(threadData->hPipe, &venda, sizeof(VENDA), &nbytes, NULL)) {
+		_stprintf_s(errorMsg, SMALL_TEXT, _T("[THREAD_CLIENTE - N.º%d] - ReadFile"), threadData->id);
 		PrintErrorMsg(GetLastError(), errorMsg);
 		return FALSE;
 	}
 
-	_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] Recebi VENDA (%d bytes)..."), id, nbytes);
-	_tprintf_s(_T("\nvenda.nomeEmpresa: '%s'\nvenda.numAcoes: %d"), venda.nomeEmpresa, venda.numAcoes);
+	_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] Recebi VENDA (%d bytes)..."), threadData->id, nbytes);
+	_tprintf_s(_T("\nvenda.nomeEmpresa: '%s'\nvenda.numAcoes: %d"), venda->nomeEmpresa, venda->numAcoes);
 
 	return TRUE;
 }
@@ -372,6 +368,10 @@ RESPOSTA_LOGIN ValidaLogin(TD_WRAPPER* threadData, const _LOGIN login) {
 		if (_tcscmp(threadData->ptd->users[i].nome, login.nome) == 0 &&
 			_tcscmp(threadData->ptd->users[i].pass, login.pass) == 0) {
 			
+			threadData->ptd->users[i].ligado = TRUE;
+
+			_tcscpy_s(threadData->nomeUser, SMALL_TEXT, threadData->ptd->users[i].nome);
+
 			LeaveCriticalSection(threadData->ptd->pCs);
 
 			r_login.resultado = TRUE;
@@ -399,10 +399,10 @@ BOOL ValidaVenda(TD_WRAPPER* threadData, const VENDA venda) {
 //|===============================| Comunicacao Bolsa -> Cliente |===============================|
 //|==============================================================================================|
 
-BOOL SendRespostaLogin(const HANDLE hPipe, const DWORD id, const RESPOSTA_LOGIN r_login) {
+BOOL SendRespostaLogin(const TD_WRAPPER* threadData, const RESPOSTA_LOGIN r_login) {	
 	DWORD nbytes, err;
 
-	if (!WriteFile(hPipe, &r_login, sizeof(RESPOSTA_LOGIN), &nbytes, NULL)) {
+	if (!WriteFile(threadData->hPipe, &r_login, sizeof(RESPOSTA_LOGIN), &nbytes, NULL)) {
 		err = GetLastError();
 		if (err == ERROR_PIPE_NOT_CONNECTED) {
 			return FALSE;
@@ -412,15 +412,16 @@ BOOL SendRespostaLogin(const HANDLE hPipe, const DWORD id, const RESPOSTA_LOGIN 
 			exit(-1);
 		}
 	}
-	_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] Enviei RESPOSTA_LOGIN (%d bytes)..."), id, nbytes);
+	_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] Enviei RESPOSTA_LOGIN (%d bytes)..."), 
+		threadData->id, nbytes);
 
 	return TRUE;
 }
 
-BOOL SendAvisoLogin(const HANDLE hPipe, const DWORD id) {
+BOOL SendAvisoLogin(const TD_WRAPPER* threadData) {
 	DWORD nbytes, err, codigo = R_AVISO_LOGIN;
 
-	if (!WriteFile(hPipe, &codigo, sizeof(DWORD), &nbytes, NULL)) {
+	if (!WriteFile(threadData->hPipe, &codigo, sizeof(DWORD), &nbytes, NULL)) {
 		err = GetLastError();
 		if (err == ERROR_PIPE_NOT_CONNECTED) {
 			return FALSE;
@@ -429,7 +430,8 @@ BOOL SendAvisoLogin(const HANDLE hPipe, const DWORD id) {
 			exit(-1);
 		}
 	}
-	_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] Enviei R_AVISO_LOGIN (%d bytes)..."), id, nbytes);
+	_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] Enviei R_AVISO_LOGIN (%d bytes)..."), 
+		threadData->id, nbytes);
 
 	return TRUE;
 }
@@ -798,6 +800,8 @@ BOOL GetUser(const TCHAR* str, USER* user, DWORD* numUsers) {
 	int res;
 
 	_tcscpy_s(line, SMALL_TEXT, str);
+
+	user->ligado = FALSE;
 
 	res = _stscanf_s(line, _T("%s %s %lf"),
 		user->nome,

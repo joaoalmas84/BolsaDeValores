@@ -34,6 +34,9 @@ typedef struct {
 	BOOL ligado;
 	HANDLE hPipe;
 	HANDLE hSemClientes;
+
+	TCHAR nomeUser[SMALL_TEXT];
+
 	TDATA_BOLSA* ptd;
 } TD_WRAPPER;
 
@@ -56,18 +59,16 @@ BOOL GerePedidos(
 	const DWORD codigo);
 
 BOOL GetLogin(
-	const DWORD id, 
-	const HANDLE hPipe, 
+	const TD_WRAPPER* threadData,
 	_LOGIN* login);
 
-
 BOOL GetCompra(
-	const DWORD id,
-	const HANDLE hPipe);
+	const TD_WRAPPER* threadData,
+	COMPRA* compra);
 
 BOOL GetVenda(
-	const DWORD id,
-	const HANDLE hPipe);
+	const TD_WRAPPER* threadData,
+	VENDA* venda);
 
 //|========================================================================================|
 //|===============================| Validação de operações |===============================|
@@ -89,13 +90,10 @@ BOOL ValidaVenda(
 //|===============================| Comunicacao Bolsa -> Cliente |===============================|
 //|==============================================================================================|
 
-BOOL SendAvisoLogin(
-	const HANDLE hPipe,
-	const DWORD id);
+BOOL SendAvisoLogin(const TD_WRAPPER* threadData);
 
 BOOL SendRespostaLogin(
-	const HANDLE hPipe, 
-	const DWORD id, 
+	const TD_WRAPPER* threadData,
 	const RESPOSTA_LOGIN r_login);
 
 BOOL SendRespostaLista();
