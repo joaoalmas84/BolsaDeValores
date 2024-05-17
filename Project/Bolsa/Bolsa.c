@@ -808,7 +808,6 @@ BOOL GetUser(const TCHAR* str, USER* user, DWORD* numUsers) {
 
 	if (res != 3) { return FALSE; }
 
-	user->ligado = FALSE;
 	user->carteira.numEmpresas = 0;
 
 	(*numUsers)++;
@@ -950,7 +949,6 @@ USER* AlocaUsers() {
 
 void InicializaUsers(USER* users) {
 	for (DWORD i = 0; i < MAX_USERS; i++) {
-		users[i].ligado = FALSE;
 		_tcscpy_s(users[i].nome, SMALL_TEXT, _T(""));
 		_tcscpy_s(users[i].pass, SMALL_TEXT, _T(""));
 	}

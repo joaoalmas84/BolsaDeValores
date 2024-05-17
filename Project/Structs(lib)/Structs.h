@@ -72,7 +72,6 @@ typedef struct {
 	TCHAR nome[SMALL_TEXT];
 	TCHAR pass[SMALL_TEXT];
 	CARTEIRA carteira;
-	BOOL ligado;
 } USER;
 
 // SharedMemory entre Bolsa e Board
