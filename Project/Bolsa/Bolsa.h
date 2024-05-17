@@ -11,7 +11,7 @@
 
 // Thread Data - Processo Bolsa
 typedef struct {
-	DWORD nclientes;		// Numero de clientes que podem estar ligados em simultaneo
+	DWORD nclientes;		// Numero de clientes que podem estar ligados em simultaneo (Apagar se não for necessário)
 
 	BOOL* continua;			// Ponteiro para a flag continua localizada na funcao main 
 
@@ -25,15 +25,15 @@ typedef struct {
 	CRITICAL_SECTION* pCs;	// Ponteiro para a Critical Section que protege alteracoes as variaveis 
 							//	acima declaradas localizada na funcao main
 
-	// Gestao de clientes
-	HANDLE hPipes[NCLIENTES];
-	HANDLE hSemClientes;
-
+	HANDLE hThreads[NCLIENTES];
 } TDATA_BOLSA;
 
 // Thread Data - ThreadClient
 typedef struct {
 	DWORD id;
+	BOOL ligado;
+	HANDLE hPipe;
+	HANDLE hSemClientes;
 	TDATA_BOLSA* ptd;
 } TD_WRAPPER;
 
@@ -52,9 +52,8 @@ DWORD WINAPI ThreadClient(LPVOID data);
 //|==============================================================================================|
 
 BOOL GerePedidos(
-	const DWORD id, 
-	const DWORD codigo, 
-	TDATA_BOLSA* threadData);
+	TD_WRAPPER* threadData,
+	const DWORD codigo);
 
 BOOL GetLogin(
 	const DWORD id, 
@@ -75,20 +74,24 @@ BOOL GetVenda(
 //|========================================================================================|
 
 RESPOSTA_LOGIN ValidaLogin(
-	TDATA_BOLSA* threadData,
+	TD_WRAPPER* threadData,
 	const _LOGIN login);
 
 BOOL ValidaCompra(
-	TDATA_BOLSA* threadData,
+	TD_WRAPPER* threadData,
 	const COMPRA compra);
 
 BOOL ValidaVenda(
-	TDATA_BOLSA* threadData,
+	TD_WRAPPER* threadData,
 	const VENDA venda);
 
 //|==============================================================================================|
 //|===============================| Comunicacao Bolsa -> Cliente |===============================|
 //|==============================================================================================|
+
+BOOL SendAvisoLogin(
+	const HANDLE hPipe,
+	const DWORD id);
 
 BOOL SendRespostaLogin(
 	const HANDLE hPipe, 
@@ -128,12 +131,7 @@ void USERS(TDATA_BOLSA* threadData);
 
 void PAUSE();
 
-void CLOSE(TDATA_BOLSA* threadData);
-
-void BroadcastClose(
-	TDATA_BOLSA* threadData, 
-	HANDLE hPipes[]);
-
+void CLOSE();
 
 //|===============================================================================================|
 //|===============================| Ficheiros de Dados - Empresas |===============================|
@@ -211,4 +209,4 @@ int ComparaEmpresas(
 	const void* a, 
 	const void* b);
 
-DWORD getHandlePipeLivre(TDATA_BOLSA* ptd);
+DWORD getHandlePipeLivre(HANDLE hPipes[NCLIENTES]);

@@ -26,6 +26,7 @@
 #define MAX_POSSE_EMPRESAS 5	// um utilizador nao pode ter acoes em mais do que 5 empresas diferentes
 
 // Comunicacao NamedPipes:
+
 // Cliente -> Bolsa (Pedido)
 #define P_LOGIN 1	// <- maior
 #define P_LISTA 2
@@ -35,6 +36,7 @@
 #define P_EXIT 6
 
 // Bolsa -> Cliente (Resposta)
+#define R_AVISO_LOGIN 0
 #define R_LOGIN 1	// <- maior
 #define R_LISTA 2
 #define R_COMPRA 3

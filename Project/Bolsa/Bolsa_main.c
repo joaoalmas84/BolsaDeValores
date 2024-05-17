@@ -113,11 +113,6 @@ int _tmain(int argc, TCHAR* argv[]) {
 	threadData.hEvent_Board = hEventBoard;
 	threadData.pCs = &cs;
 
-	threadData.hSemClientes = NULL;
-	for (DWORD i = 0; i < NCLIENTES; i++) {
-		threadData.hPipes[i] = NULL;
-	}
-
 	if (FileExists(FILE_EMPRESAS)) {
 		if (!CarregaEmpresas(empresas, &numEmpresas)) {		
 			_tprintf_s(_T("\n(Função CarregaEmpresas)"));

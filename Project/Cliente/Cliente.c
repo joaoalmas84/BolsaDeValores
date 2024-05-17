@@ -82,6 +82,9 @@ DWORD WINAPI ThreadRead(LPVOID data) {
 
 BOOL GereRespostas(const DWORD codigo, TDATA_CLIENTE* threadData) {
 	switch (codigo) {
+		case R_AVISO_LOGIN:
+			_tprintf_s(_T("\n[CLIENTE] É necessário fazer Login para utilizar esse comando..."));
+			break;
 		case R_LOGIN:
 			GetRespostaLogin(threadData->hPipe) ? _tprintf_s(_T("\n[CLIENTE] Login success...")) : _tprintf_s(_T("\n[CLIENTE] Login NOT success..."));
 			break;
