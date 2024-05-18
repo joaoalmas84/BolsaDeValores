@@ -34,6 +34,8 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     // Array de Eventos para o WaitForMultipleObjects();
     HANDLE hEvents[2]; // [0]: Evento_SHM; [1]: Evento_Exit
+
+    TCHAR ultimaTransacao[SMALL_TEXT] = {_T("\0")};
     
 #ifdef UNICODE
     setmodeReturn = _setmode(_fileno(stdin), _O_WTEXT);
@@ -114,6 +116,7 @@ int _tmain(int argc, TCHAR* argv[]) {
     }
 
     WaitForSingleObject(hMutex_SHM, INFINITE);
+    _tcscpy_s(ultimaTransacao, SMALL_TEXT, sharedMemory->ultimaTransacao);
     CopyMemory(empresas, sharedMemory->empresas, sizeof(EMPRESA) * MAX_EMPRESAS_TO_SHM);
     ReleaseMutex(hMutex_SHM);
 
@@ -124,11 +127,14 @@ int _tmain(int argc, TCHAR* argv[]) {
         system("cls");
 
         PrintTop(empresas, N);
-        _tprintf_s(_T("\n\nPrima ENTER para terminar..."));
+        _tprintf_s(_T("\n\tÚltima Transação : '%s'"), ultimaTransacao);
+
+        _tprintf_s(_T("\n\n\nPrima ENTER para terminar..."));
 
         WaitForMultipleObjects(2, hEvents, FALSE, INFINITE);
 
         EnterCriticalSection(&cs);
+        _tcscpy_s(ultimaTransacao, SMALL_TEXT, sharedMemory->ultimaTransacao);
         CopyMemory(empresas, sharedMemory->empresas, sizeof(EMPRESA) * MAX_EMPRESAS_TO_SHM);
         continua = *threadData.continua;
         LeaveCriticalSection(&cs);

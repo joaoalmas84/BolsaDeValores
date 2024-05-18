@@ -31,6 +31,8 @@ int _tmain(int argc, TCHAR* argv[]) {
 	BOOL continua = TRUE;		
 	BOOL pause = FALSE;
 
+	TCHAR ultimaTransacao[SMALL_TEXT] = {_T("\0")};
+
 	// Variáveis relativas às Threads
 	TDATA_BOLSA threadData;
 	HANDLE hEventBoard;	// Evento para avisar a Board de que a informacao foi atualizada
@@ -116,6 +118,8 @@ int _tmain(int argc, TCHAR* argv[]) {
 		
 	threadData.hEvent_Board = hEventBoard;
 	threadData.pCs = &cs;
+
+	threadData.ultimaTransacao = ultimaTransacao;
 
 	threadData.hThreadMain = OpenThread(THREAD_ALL_ACCESS, FALSE, GetCurrentThreadId());
 	if (threadData.hThreadMain == NULL) {

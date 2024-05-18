@@ -49,26 +49,24 @@ DWORD WINAPI ThreadBoard(LPVOID data) {
 		return 1;
 	}
 
-	_tprintf_s(_T("\n[THREAD_BOARD] Started...."));
+	while (1) {
+		EnterCriticalSection(ptd->pCs);
+		continua = *ptd->continua;
+		LeaveCriticalSection(ptd->pCs);
 
-	while (continua) {
+		if (!continua) { break; }
 
-		WaitForSingleObject(hMutex, INFINITE);
+		EnterCriticalSection(ptd->pCs);
 		ZeroMemory(sharedMemory, sizeof(sharedMemory));
-		CopyMemory(sharedMemory->empresas, ptd->empresas, sizeof(EMPRESA)*MAX_EMPRESAS_TO_SHM);
-		ReleaseMutex(hMutex);
+		_tcscpy_s(sharedMemory->ultimaTransacao, SMALL_TEXT, ptd->ultimaTransacao);
+		CopyMemory(sharedMemory->empresas, ptd->empresas, sizeof(EMPRESA) * MAX_EMPRESAS_TO_SHM);
+		LeaveCriticalSection(ptd->pCs);
 
 		SetEvent(hEvent); // Avisa a Board de que pode voltar atualizar o TOP
 		ResetEvent(hEvent);
 
 		WaitForSingleObject(ptd->hEvent_Board, INFINITE); // Espera por alteracoes aos dados
-
-		EnterCriticalSection(ptd->pCs);
-		continua = *ptd->continua;
-		LeaveCriticalSection(ptd->pCs);
 	}
-
-	_tprintf_s(_T("\n[THREAD_BOARD] Ending...."));
 
 	FlushViewOfFile(sharedMemory, 0);
 
@@ -580,6 +578,9 @@ BOOL ValidaCompra(TD_WRAPPER* threadData, const COMPRA compra) {
 		user->carteira.numEmpresas++;
 	}
 
+
+	_tcscpy_s(threadData->ptd->ultimaTransacao, SMALL_TEXT, threadData->ptd->empresas[indiceEmpresa].nome);
+
 	SetEvent(threadData->ptd->hEvent_Board);
 	ResetEvent(threadData->ptd->hEvent_Board);
 
@@ -929,6 +930,8 @@ BOOL STOCK(const CMD comando, TDATA_BOLSA* threadData, TCHAR* mensagem) {
 		if (_tcscmp(ToLowerString(threadData->empresas[i].nome), ToLowerString(comando.Args[1])) == 0) {
 			threadData->empresas[i].preco = preco;
 			qsort(threadData->empresas, numEmpresas, sizeof(EMPRESA), ComparaEmpresas);
+			SetEvent(threadData->hEvent_Board);
+			ResetEvent(threadData->hEvent_Board);
 			break;
 		}
 	}

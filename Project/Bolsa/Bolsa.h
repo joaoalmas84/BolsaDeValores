@@ -36,6 +36,8 @@ typedef struct {
 	HANDLE hEv_Conn;
 	HANDLE hEv_Pause;
 
+	TCHAR* ultimaTransacao;
+
 } TDATA_BOLSA;
 
 // Thread Data - ThreadClient
