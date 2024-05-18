@@ -4,6 +4,8 @@
 #include <tchar.h>
 #include <stdlib.h>
 
+static double PerfCounterFreq; // n ticks por seg. (clock)
+
 // Macros
 #define _NCLIENTES _T("NCLIENTES")			// nome da RegKey NCLIENTES
 #define FILE_EMPRESAS _T("empresas.txt")	// nome do ficheiro de emprecas 
@@ -20,8 +22,8 @@
 #define BIG_TEXT 500			// Tamanho de buffer para textos
 #define SMALL_TEXT 100			// Tamanho de buffer para frases
 #define NCLIENTES 5				// valor default para a RegKey NCLIENTES 
-#define MAX_EMPRESAS 30			// numero maximo de empresas
-#define MAX_USERS 20			// numero maximo de users
+#define MAX_EMPRESAS 30			// numero maximo de empresas registadas
+#define MAX_USERS 20			// numero maximo de users registados
 #define MAX_EMPRESAS_TO_SHM 10	// numero maximo de empresas a que passar para Shared Memory
 #define MAX_POSSE_EMPRESAS 5	// um utilizador nao pode ter acoes em mais do que 5 empresas diferentes
 
@@ -33,16 +35,15 @@
 #define P_COMPRA 3
 #define P_VENDA 4
 #define P_BALANCE 5
-#define P_EXIT 6
 
 // Bolsa -> Cliente (Resposta)
-#define R_AVISO_LOGIN 0
 #define R_LOGIN 1	// <- maior
 #define R_LISTA 2
 #define R_COMPRA 3
 #define R_VENDA 4
 #define R_BALANCE 5
-#define R_CLOSE 6
+#define R_AVISO_LOGIN 6
+#define R_AVISO_PAUSE 7
 
 //|============================================================================|
 //|===============================| Estruturas |===============================|
@@ -56,8 +57,8 @@ typedef struct {
 } EMPRESA;
 
 typedef struct {
-	TCHAR empresasNomes[SMALL_TEXT];// array com os nomes empresas das quais este User possui acoes
-	DWORD acoes;					// acoes que possui de cada empresa
+	TCHAR nome[SMALL_TEXT];// array com os nomes empresas das quais este User possui acoes
+	DWORD numAcoes;					// acoes que possui de cada empresa
 } POSSE_EMPRESA;
 
 // Estrutura que representa a carteira do User
@@ -139,7 +140,7 @@ typedef struct {
 // Resposta Lista
 typedef struct {
 	DWORD codigo; // <- R_LISTA
-	TCHAR lista[BIG_TEXT];
+	DWORD numEmpresas;
 } RESPOSTA_LISTA;
 
 // Resposta Compra
@@ -157,5 +158,5 @@ typedef struct {
 // Resposta BALANCE
 typedef struct {
 	DWORD codigo; // <- R_BALANCE
-	BOOL resultado;
+	TCHAR saldo[SMALL_TEXT];
 } RESPOSTA_BALANCE;

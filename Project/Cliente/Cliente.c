@@ -15,7 +15,6 @@ DWORD WINAPI ThreadRead(LPVOID data) {
 	TDATA_CLIENTE* ptd = (TDATA_CLIENTE*)data;
 	
 	HANDLE hPipe;
-	HANDLE hEv_ov;
 	OVERLAPPED ov;
 
 	DWORD nbytes, err, codigo;
@@ -28,31 +27,48 @@ DWORD WINAPI ThreadRead(LPVOID data) {
 	hPipe = ptd->hPipe;
 	LeaveCriticalSection(ptd->pCs);
 
-	hEv_ov = CreateEvent(NULL, TRUE, FALSE, NULL);
-	if (hEv_ov == NULL) {
+	ptd->hEv_Read = CreateEvent(NULL, TRUE, FALSE, NULL);
+	if (ptd->hEv_Read == NULL) {
 		PrintErrorMsg(GetLastError(), _T("CreateEvent"));
 		exit(-1);
 	}
 
 	ZeroMemory(&ov, sizeof(OVERLAPPED));
-	ov.hEvent = hEv_ov;
+	ov.hEvent = ptd->hEv_Read;
 
 	while (1) {
 		if (!ReadFile(hPipe, &codigo, sizeof(DWORD), &nbytes, &ov)) {
 			err = GetLastError();
 			if (err == ERROR_IO_PENDING) {
-				WaitForSingleObject(hEv_ov, INFINITE);
+				WaitForSingleObject(ov.hEvent, INFINITE);
+
+				EnterCriticalSection(ptd->pCs);
+				continua = *ptd->continua;
+				LeaveCriticalSection(ptd->pCs);
+
+				if (!continua) { break; }
+
 				if (!GetOverlappedResult(hPipe, &ov, &nbytes, FALSE)) {
 					err = GetLastError();
-					if (err == ERROR_PIPE_NOT_CONNECTED) {
-						_tprintf(TEXT("\n[CLIENTE] O servidor foi encerrado...\n"));
+					 if (err == ERROR_PIPE_NOT_CONNECTED) {
+						_tprintf(_T("\n[CLIENTE] A bolsa foi encerrada...\n"));
+
+						EnterCriticalSection(ptd->pCs);
+						*ptd->continua = FALSE;
+						LeaveCriticalSection(ptd->pCs);
+
+						if (!CancelSynchronousIo(ptd->hThread_Main)) {
+							PrintErrorMsg(GetLastError(), _T("CancelSynchronousIo"));
+							exit(-1);
+						}
+
 						break;
 					} else {
 						PrintErrorMsg(err, _T("GetOverlappedResult"));
 						exit(-1);
 					}
 				}
-				ResetEvent(hEv_ov);
+				ResetEvent(ov.hEvent);
 			} else {
 				PrintErrorMsg(err, _T("ReadFile"));
 				exit(-1);
@@ -66,12 +82,13 @@ DWORD WINAPI ThreadRead(LPVOID data) {
 		if (!continua) { break; } 
 
 		if (!GereRespostas(codigo, ptd)) { 
-			_tprintf_s(_T("\n[CLIENTE] A Bolsa desligou-se..."));
 			EnterCriticalSection(ptd->pCs);
 			continua = *ptd->continua;
 			LeaveCriticalSection(ptd->pCs);
 		}
 	}
+
+	_tprintf_s(_T("\n[CLEINTE] ThreadRead ending..."));
 
 	ExitThread(6);
 }
@@ -82,28 +99,45 @@ DWORD WINAPI ThreadRead(LPVOID data) {
 
 BOOL GereRespostas(const DWORD codigo, TDATA_CLIENTE* threadData) {
 	switch (codigo) {
+		case R_LOGIN:
+			if (GetOperationResult(threadData->hPipe)) {
+				_tprintf_s(_T("\n[CLIENTE] Login efetuado com sucesso!"));
+			} else {
+				_tprintf_s(_T("\n[CLIENTE] Não foi possível fazer login!"));
+			}			
+			break;
+
+		case R_LISTA:
+			_tprintf_s(_T("\n[CLIENTE] RESPOSTA_LISTA..."));
+			if (!GetRespostaLista(threadData->hPipe)) { return FALSE; }
+			break;
+
+		case R_COMPRA:
+			if (GetOperationResult(threadData->hPipe)) {
+				_tprintf_s(_T("\n[CLIENTE] Compra efetuada com sucesso!"));
+			} else {
+				_tprintf_s(_T("\n[CLIENTE] Não foi possível realizar a compra!"));
+			}
+			break;
+
+		case R_VENDA:
+			if (GetOperationResult(threadData->hPipe)) {
+				_tprintf_s(_T("\n[CLIENTE] Venda efetuada com sucesso!"));
+			} else {
+				_tprintf_s(_T("\n[CLIENTE] Não foi possível realizar a venda!"));
+			}
+			break;
+
+		case R_BALANCE:
+			_tprintf_s(_T("\n[CLIENTE] Balance"));
+			if (!GetRespostaBalance(threadData->hPipe)) { return FALSE; }
+
+			break;
 		case R_AVISO_LOGIN:
 			_tprintf_s(_T("\n[CLIENTE] É necessário fazer Login para utilizar esse comando..."));
 			break;
-		case R_LOGIN:
-			GetRespostaLogin(threadData->hPipe) ? _tprintf_s(_T("\n[CLIENTE] Login success...")) : _tprintf_s(_T("\n[CLIENTE] Login NOT success..."));
-			break;
-		case R_LISTA:
-			break;
-		case R_COMPRA:
-			GetRespostaLogin(threadData->hPipe) ?
-				_tprintf_s(_T("\n[CLIENTE] A compra foi realizada com sucesso...")) :
-				_tprintf_s(_T("\n[CLIENTE] A compra não foi realizada..."));
-			break;
-		case R_VENDA:
-			GetRespostaLogin(threadData->hPipe) ?
-				_tprintf_s(_T("\n[CLIENTE] A venda foi realizada com sucesso...")) :
-				_tprintf_s(_T("\n[CLIENTE] A venda não foi realizada..."));
-			break;
-		case R_BALANCE:
-			break;
-		case R_CLOSE:
-			return FALSE;
+		case R_AVISO_PAUSE:
+			_tprintf_s(_T("\n[CLIENTE] Bolsa em pausa..."));
 			break;
 		default:
 			break;
@@ -111,7 +145,7 @@ BOOL GereRespostas(const DWORD codigo, TDATA_CLIENTE* threadData) {
 	return TRUE;
 }
 
-BOOL GetRespostaLogin(const HANDLE hPipe) {
+BOOL GetOperationResult(const HANDLE hPipe) {
 	BOOL resultado;
 	DWORD nbytes;
 
@@ -121,27 +155,49 @@ BOOL GetRespostaLogin(const HANDLE hPipe) {
 	}
 
 	return resultado;
-
 }
 
-BOOL GetRespostaCompra(const HANDLE hPipe) {
-	BOOL resultado;
-	DWORD nbytes;
+BOOL GetRespostaLista(const HANDLE hPipe) {
+	DWORD nbytes, numEmpresas;
+	TCHAR buffer[BIG_TEXT];
 
-	if (!ReadFile(hPipe, &resultado, sizeof(BOOL), &nbytes, NULL)) {
+	if (!ReadFile(hPipe, &numEmpresas, sizeof(DWORD), &nbytes, NULL)) {
+		PrintErrorMsg(GetLastError(), _T("[CLIENTE] - ReadFile"));
+		return FALSE;
+	}
+	_tprintf_s(_T("\n[CLIENTE] Recebi numEmpresas: %d (%d nbytes)..."), numEmpresas, nbytes);
+
+	for (DWORD i = 0; i < numEmpresas; i++) {
+		if (!ReadFile(hPipe, buffer, sizeof(buffer), &nbytes, NULL)) {
+			PrintErrorMsg(GetLastError(), _T("[CLIENTE] - ReadFile"));
+			return FALSE;
+		}
+		_tprintf(_T("%s"), buffer);
+
+	}
+
+	return TRUE;
+}
+
+BOOL GetRespostaBalance(const HANDLE hPipe) {
+	DWORD nbytes;
+	TCHAR buff[SMALL_TEXT];
+
+	if (!ReadFile(hPipe, buff, sizeof(buff), &nbytes, NULL)) {
 		PrintErrorMsg(GetLastError(), _T("[CLIENTE] - ReadFile"));
 		return FALSE;
 	}
 
-	return resultado;
+	_tprintf(_T("\n[CLIENTE] %s"), buff);
 
+	return TRUE;
 }
 
 //|==========================================================================|
 //|===============================| Comandos |===============================|
 //|==========================================================================|
 
-BOOL ExecutaComando(const CMD comando, TDATA_CLIENTE* ptd) {
+BOOL ExecutaComando(const CMD comando, TDATA_CLIENTE* threadData) {
 
 	// Apagar depois
 	_tprintf_s(_T("\nComando: "));
@@ -155,32 +211,27 @@ BOOL ExecutaComando(const CMD comando, TDATA_CLIENTE* ptd) {
 
 	switch (comando.Index) {
 		case 0:
-			if (!LOGIN(comando, *ptd)) { return FALSE; }
+			if (!LOGIN(comando, *threadData)) { return FALSE; }
 			break;
 
 		case 1:
-			if (!LISTC(comando, *ptd)) { return FALSE; }
+			if (!LISTC(comando, *threadData)) { return FALSE; }
 			break;
 
 		case 2:
-			if (!BUY(comando, *ptd)) { return FALSE; }
+			if (!BUY(comando, *threadData)) { return FALSE; }
 			break;
 
 		case 3:
-			if (!SELL(comando, *ptd)) { return FALSE; }
+			if (!SELL(comando, *threadData)) { return FALSE; }
 			break;
 
 		case 4:
-			if (!BALANCE(comando, *ptd)) { return FALSE; }
+			if (!BALANCE(comando, *threadData)) { return FALSE; }
 			break;
 
 		case 5:
-			if (!EXIT(comando, *ptd)) { return FALSE; }
-
-			EnterCriticalSection(ptd->pCs);
-			ptd->continua = FALSE;
-			LeaveCriticalSection(ptd->pCs);
-
+			if (!EXIT(threadData)) { return FALSE; }
 			break;
 
 		default:
@@ -301,19 +352,13 @@ BOOL BALANCE(const CMD comando, const TDATA_CLIENTE threadData) {
 	return TRUE;
 }
 
-BOOL EXIT(const CMD comando, const TDATA_CLIENTE threadData) {
-	DWORD err, nbytes, codigo = P_EXIT;
+BOOL EXIT(TDATA_CLIENTE* threadData) {
 
-	if (!WriteFile(threadData.hPipe, &codigo, sizeof(DWORD), &nbytes, NULL)) {
-		err = GetLastError();
-		if (err == ERROR_PIPE_NOT_CONNECTED) {
-			return FALSE;
-		} else {
-			PrintErrorMsg(err, _T("WriteFile"));
-			exit(-1);
-		}
-	}
-	_tprintf_s(_T("\n[CLIENTE] Enviei codigo = P_EXIT (%d bytes)..."), nbytes);
+	EnterCriticalSection(threadData->pCs);
+	*threadData->continua = FALSE;
+	LeaveCriticalSection(threadData->pCs);
+
+	SetEvent(threadData->hEv_Read);
 
 	return TRUE;
 }

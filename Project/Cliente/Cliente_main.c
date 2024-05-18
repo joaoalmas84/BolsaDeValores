@@ -18,7 +18,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 	HANDLE hPipe; // HANDLE do pipe
 
 	TDATA_CLIENTE threadData;
-	HANDLE hThread;
+	HANDLE hThread_Read;
 
 	CRITICAL_SECTION cs;// Critical Section para proteger alteracoes feitas a estrutura TDATA_CLIENTE
 
@@ -57,15 +57,15 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 	threadData.continua = &continua;
 	threadData.hPipe = hPipe;
-	threadData.hThread = OpenThread(THREAD_ALL_ACCESS, FALSE, GetCurrentThreadId());
-	if (threadData.hThread == NULL) {
+	threadData.hThread_Main = OpenThread(THREAD_ALL_ACCESS, FALSE, GetCurrentThreadId());
+	if (threadData.hThread_Main == NULL) {
 		PrintErrorMsg(GetLastError(), _T("OpenThread"));
 		exit(-1);
 	}
 	threadData.pCs = &cs;
 
-	hThread = CreateThread(NULL, 0, ThreadRead, (LPVOID)&threadData, 0, NULL);
-	if (hThread == NULL) {
+	hThread_Read = CreateThread(NULL, 0, ThreadRead, (LPVOID)&threadData, 0, NULL);
+	if (hThread_Read == NULL) {
 		PrintErrorMsg(GetLastError(), _T("CreateThread"));
 		DeleteCriticalSection(&cs);
 		CloseHandle(hPipe);
@@ -76,11 +76,16 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 	_tprintf_s(_T("\n\n[CLIENTE] Bem vindo..."));
 
-	_tprintf_s(_T("\n\n[CLIENTE] Frase: "));
-
-
 	while (1) {
-		if (!GetCmd(input)) { continue; }
+		if (!GetCmd(input)) { 
+
+			EnterCriticalSection(threadData.pCs);
+			continua = *threadData.continua;
+			LeaveCriticalSection(threadData.pCs);
+
+			if (continua) { continue; }
+			else { break; }
+		}
 
 		if (!ValidaCmd(input, &comando, errorMsg, FALSE)) {
 			_tprintf(_T("\n[ERRO] %s."), errorMsg);
@@ -94,7 +99,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 	_tprintf_s(_T("\n[CLIENTE] A terminar..."));
 
-	WaitForSingleObject(hThread, INFINITE);
+	WaitForSingleObject(hThread_Read, INFINITE);
 
 	DeleteCriticalSection(&cs);
 

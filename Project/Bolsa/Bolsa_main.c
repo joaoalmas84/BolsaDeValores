@@ -28,14 +28,17 @@ int _tmain(int argc, TCHAR* argv[]) {
 	DWORD numUsers = 0; // Numero de users registados
 
 	// Flag para terminar as threads
-	BOOL continua = TRUE;				
+	BOOL continua = TRUE;		
+	BOOL pause = FALSE;
 
 	// Variáveis relativas às Threads
 	TDATA_BOLSA threadData;
-	HANDLE hThread[3 + MAX_USERS];
-	DWORD threadId[3 + MAX_USERS];
 	HANDLE hEventBoard;	// Evento para avisar a Board de que a informacao foi atualizada
 	CRITICAL_SECTION cs;// Critical Section para proteger alteracoes feitas a estrutura TDATA_BOLSA
+
+	HANDLE hThreadBoard;
+	HANDLE hThreadGetClients;
+	HANDLE hThreadPause;
 
 	// Variaveis para lidar com casos de erro
 	TCHAR errorMsg[SMALL_TEXT];	// Buffer para guardar mensagens do developer em caso de erro
@@ -62,7 +65,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 		return 1;
 	}
 
-	nclientes = getNCLIENTES();
+	nclientes = GetNCLIENTES();
 	if (nclientes < 0) {
 		_tprintf_s(_T("\nValor da RegKey %s inválido!"), _NCLIENTES);
 		CloseHandle(hSem);
@@ -103,6 +106,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 	threadData.nclientes = nclientes;
 	threadData.continua = &continua;
+	threadData.pause = &pause;
 
 	threadData.empresas = empresas;
 	threadData.numEmpresas = &numEmpresas;
@@ -112,6 +116,12 @@ int _tmain(int argc, TCHAR* argv[]) {
 		
 	threadData.hEvent_Board = hEventBoard;
 	threadData.pCs = &cs;
+
+	threadData.hThreadMain = OpenThread(THREAD_ALL_ACCESS, FALSE, GetCurrentThreadId());
+	if (threadData.hThreadMain == NULL) {
+		PrintErrorMsg(GetLastError(), _T("OpenThread"));
+		exit(-1);
+	}
 
 	if (FileExists(FILE_EMPRESAS)) {
 		if (!CarregaEmpresas(empresas, &numEmpresas)) {		
@@ -141,13 +151,14 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	/// A PARTIR DAQUI TODAS AS ALTERACOES FEITAS AS VARIAVEIS									///
-	/// "empresas[]", "numEmpresas", "users[]" e "numUsers"										///
-	/// SAO CONSIDERADAS ZONAS CRITICAS E DEVEM SER PROTEGIDAS POR UM MUTEX (threadData.hMutex)	///
+	/// "empresas[]", "numEmpresas", "users[]", "numUsers", "continua"							///
+	/// SAO CONSIDERADAS ZONAS CRITICAS E DEVEM SER PROTEGIDAS POR UMA CRITICAL SECTION			///
+	/// (threadData.pCs)																		///
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	// Lançamento da ThreadBoard 
-	hThread[0] = CreateThread(NULL, 0, ThreadBoard, (LPVOID)&threadData, 0, &threadId[0]);
-	if (hThread[0] == NULL) {
+	hThreadBoard = CreateThread(NULL, 0, ThreadBoard, (LPVOID)&threadData, 0, NULL);
+	if (hThreadBoard == NULL) {
 		PrintErrorMsg(GetLastError(), _T("Erro ao lançar ThreadBoard"));
 		free(users);
 		free(empresas);
@@ -158,8 +169,8 @@ int _tmain(int argc, TCHAR* argv[]) {
 	}
 
 	// Lançamento da ThreadGetClients 
-	hThread[1] = CreateThread(NULL, 0, ThreadGetClients, (LPVOID)&threadData, 0, &threadId[1]);
-	if (hThread[1] == NULL) {
+	hThreadGetClients = CreateThread(NULL, 0, ThreadGetClients, (LPVOID)&threadData, 0, NULL);
+	if (hThreadGetClients == NULL) {
 		PrintErrorMsg(GetLastError(), _T("Erro ao lançar ThreadGetClients"));
 
 		EnterCriticalSection(&cs);
@@ -168,9 +179,9 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 		SetEvent(hEventBoard);
 
-		WaitForSingleObject(hThread[0], INFINITE);
+		WaitForSingleObject(hThreadBoard, INFINITE);
+		CloseHandle(hThreadBoard);
 
-		CloseHandle(hThread[0]);
 		free(users);
 		free(empresas);
 		CloseHandle(hEventBoard);
@@ -179,22 +190,60 @@ int _tmain(int argc, TCHAR* argv[]) {
 		return 1;
 	}
 
+	// Lançamento da Pause 
+	hThreadPause = CreateThread(NULL, 0, ThreadPause, (LPVOID)&threadData, 0, NULL);
+	if (hThreadPause == NULL) {
+		PrintErrorMsg(GetLastError(), _T("Erro ao lançar ThreadGetClients"));
+
+		EnterCriticalSection(&cs);
+		continua = FALSE;
+		LeaveCriticalSection(&cs);
+
+		SetEvent(hEventBoard);
+
+		WaitForSingleObject(hThreadBoard, INFINITE);
+		CloseHandle(hThreadBoard);
+
+		WaitForSingleObject(hThreadGetClients, INFINITE);
+		CloseHandle(hThreadGetClients);
+
+		free(users);
+		free(empresas);
+		CloseHandle(hEventBoard);
+		DeleteCriticalSection(&cs);
+		CloseHandle(hSem);
+		return 1;
+	}
+
+	Sleep(1);
+
 	//system("cls");
 
 	while (1) {
 		if (!GetCmd(input)) { continue; }
 
+		if (!continua) { break; }
+
 		if (!ValidaCmd(input, &comando, errorMsg, TRUE)) {
 			_tprintf(_T("\n[ERRO] %s."), errorMsg);
 		} else {
 			if (!ExecutaComando(comando, &threadData, errorMsg)) {
-				_tprintf(_T("\n[ERRO] %s."), errorMsg);
+				if (comando.Index != 5) {
+					_tprintf(_T("\n[ERRO] %s."), errorMsg);
+				}
 			}			
 			if (comando.Index == 5) { break; }
 		}
 	}
 
-	WaitForSingleObject(hThread[0], INFINITE);
+	WaitForSingleObject(hThreadPause, INFINITE);
+	CloseHandle(hThreadPause);
+
+	WaitForSingleObject(hThreadGetClients, INFINITE);
+	CloseHandle(hThreadGetClients);
+
+	WaitForSingleObject(hThreadBoard, INFINITE);
+	CloseHandle(hThreadBoard);
 
 	if (numEmpresas > 0) {
 		if (!SalvaEmpresas(empresas, numEmpresas)) {
@@ -219,10 +268,6 @@ int _tmain(int argc, TCHAR* argv[]) {
 			return 1;
 		}
 	}
-
-	CloseHandle(hThread[1]);
-
-	CloseHandle(hThread[0]);
 
 	free(users);
 

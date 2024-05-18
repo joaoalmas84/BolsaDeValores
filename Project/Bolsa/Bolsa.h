@@ -11,9 +11,13 @@
 
 // Thread Data - Processo Bolsa
 typedef struct {
+
 	DWORD nclientes;		// Numero de clientes que podem estar ligados em simultaneo (Apagar se não for necessário)
 
 	BOOL* continua;			// Ponteiro para a flag continua localizada na funcao main 
+
+	DWORD pauseTime;
+	BOOL* pause;
 
 	EMPRESA* empresas;		// Ponteiro para o array de empresas localizado na funcao main
 	DWORD* numEmpresas;		// Ponteiro para o numero de empresas registadas localizado na funcao main
@@ -22,10 +26,16 @@ typedef struct {
 	DWORD* numUsers;		// Ponteiro para o numero de users registadas localizado na funcao main
 
 	HANDLE hEvent_Board;	// Evento para avisar a Board de que a informacao foi atualizada
-	CRITICAL_SECTION* pCs;	// Ponteiro para a Critical Section que protege alteracoes as variaveis 
-							//	acima declaradas localizada na funcao main
 
-	HANDLE hThreads[NCLIENTES];
+	CRITICAL_SECTION* pCs;	// Ponteiro para a Critical Section que protege alteracoes as variaveis 
+							// acima declaradas localizada na funcao main
+	HANDLE hThreadMain;
+
+	HANDLE hEv_Read[NCLIENTES];
+
+	HANDLE hEv_Conn;
+	HANDLE hEv_Pause;
+
 } TDATA_BOLSA;
 
 // Thread Data - ThreadClient
@@ -49,6 +59,8 @@ DWORD WINAPI ThreadBoard(LPVOID data);
 DWORD WINAPI ThreadGetClients(LPVOID data);
 
 DWORD WINAPI ThreadClient(LPVOID data);
+
+DWORD WINAPI ThreadPause(LPVOID data);
 
 //|==============================================================================================|
 //|===============================| Comunicacao Cliente -> Bolsa |===============================|
@@ -74,7 +86,7 @@ BOOL GetVenda(
 //|===============================| Validação de operações |===============================|
 //|========================================================================================|
 
-RESPOSTA_LOGIN ValidaLogin(
+BOOL ValidaLogin(
 	TD_WRAPPER* threadData,
 	const _LOGIN login);
 
@@ -90,21 +102,34 @@ BOOL ValidaVenda(
 //|===============================| Comunicacao Bolsa -> Cliente |===============================|
 //|==============================================================================================|
 
-BOOL SendAvisoLogin(const TD_WRAPPER* threadData);
-
 BOOL SendRespostaLogin(
 	const TD_WRAPPER* threadData,
 	const RESPOSTA_LOGIN r_login);
 
-BOOL SendRespostaLista();
+BOOL SendRespostaLista(
+	const TD_WRAPPER* threadData,
+	RESPOSTA_LISTA r_lista);
+
+void MakeRespostaLista(
+	const EMPRESA empresa, 
+	const DWORD index, 
+	TCHAR buffer[]);
 
 BOOL SendRespostaCompra(
-	const TD_WRAPPER* threadData, 
-	const RESPOSTA_COMPRA r_compra);
+	const TD_WRAPPER* threadData,
+	RESPOSTA_COMPRA r_compra);
 
-BOOL SendRespostaVenda();
+BOOL SendRespostaVenda(
+	const TD_WRAPPER* threadData,
+	RESPOSTA_VENDA r_venda);
 
-BOOL SendRespostaBalance();
+BOOL SendRespostaBalance(
+	const TD_WRAPPER* threadData,
+	const RESPOSTA_BALANCE r_balance);
+
+BOOL SendAvisoLogin(const TD_WRAPPER* threadData);
+
+BOOL SendAvisoPause(const TD_WRAPPER* threadData);
 
 //|==========================================================================|
 //|===============================| Comandos |===============================|
@@ -129,9 +154,11 @@ BOOL STOCK(
 
 void USERS(TDATA_BOLSA* threadData);
 
-void PAUSE();
+BOOL PAUSE(
+	const CMD comando, 
+	TDATA_BOLSA* threadData);
 
-void CLOSE();
+BOOL CLOSE(TDATA_BOLSA* threadData);
 
 //|===============================================================================================|
 //|===============================| Ficheiros de Dados - Empresas |===============================|
@@ -195,7 +222,7 @@ BOOL SalvaUsers(
 //|===============================| Outras |===============================|
 //|========================================================================|
 
-DWORD getNCLIENTES();
+DWORD GetNCLIENTES();
 
 EMPRESA* AlocaEmpresas();
 
@@ -209,6 +236,6 @@ int ComparaEmpresas(
 	const void* a, 
 	const void* b);
 
-DWORD getHandlePipeLivre(HANDLE hPipes[NCLIENTES]);
+DWORD GetHandlePipeLivre(HANDLE hPipes[NCLIENTES]);
 
-USER* getUser(const TCHAR* Nome, TDATA_BOLSA* dados);
+USER* GetPtrToUser(const TCHAR* Nome, TDATA_BOLSA* dados);

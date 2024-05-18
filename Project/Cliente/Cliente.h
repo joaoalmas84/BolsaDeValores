@@ -10,10 +10,11 @@ typedef struct {
 	BOOL* continua;			// Ponteiro para a flag continua localizada na funcao main 
 	
 	HANDLE hPipe;			// HANDLE do pipe
-	HANDLE hThread;			// HANDLE para thread main para possibilitar interromper operações I/O
+	HANDLE hThread_Main;	// HANDLE para possibilitar interromper operações I/O da thread main
+	HANDLE hEv_Read;		// HANDLE para o EVENTO do Overlapped I/O da thread Read
 
 	CRITICAL_SECTION* pCs;	// Ponteiro para a Critical Section que protege alteracoes as variaveis 
-							//	acima declaradas localizada na funcao main
+							// acima declaradas localizada na funcao main
 } TDATA_CLIENTE;
 
 //|=========================================================================|
@@ -30,9 +31,11 @@ BOOL GereRespostas(
 	const DWORD codigo,
 	TDATA_CLIENTE* threadData);
 
-BOOL GetRespostaLogin(const HANDLE hPipe);
+BOOL GetOperationResult(const HANDLE hPipe);
 
-BOOL GetRespostaCompra(const HANDLE hPipe);
+BOOL GetRespostaLista(const HANDLE hPipe);
+
+BOOL GetRespostaBalance(const HANDLE hPipe);
 
 //|==========================================================================|
 //|===============================| Comandos |===============================|
@@ -40,7 +43,7 @@ BOOL GetRespostaCompra(const HANDLE hPipe);
 
 BOOL ExecutaComando(
 	const CMD comando, 
-	TDATA_CLIENTE* ptd);
+	TDATA_CLIENTE* threadData);
 
 BOOL LOGIN(
 	const CMD comando, 
@@ -62,7 +65,5 @@ BOOL BALANCE(
 	const CMD comando, 
 	const TDATA_CLIENTE threadData);
 
-BOOL EXIT(
-	const CMD comando, 
-	const TDATA_CLIENTE threadData);
+BOOL EXIT(TDATA_CLIENTE* threadData);
 

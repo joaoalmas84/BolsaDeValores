@@ -49,23 +49,26 @@ DWORD WINAPI ThreadBoard(LPVOID data) {
 		return 1;
 	}
 
-	while (1) {
-		EnterCriticalSection(ptd->pCs);
-		continua = *ptd->continua;
-		LeaveCriticalSection(ptd->pCs);
+	_tprintf_s(_T("\n[THREAD_BOARD] Started...."));
 
-		if (!continua) { break; }
+	while (continua) {
 
-		EnterCriticalSection(ptd->pCs);
+		WaitForSingleObject(hMutex, INFINITE);
 		ZeroMemory(sharedMemory, sizeof(sharedMemory));
 		CopyMemory(sharedMemory->empresas, ptd->empresas, sizeof(EMPRESA)*MAX_EMPRESAS_TO_SHM);
-		LeaveCriticalSection(ptd->pCs);
+		ReleaseMutex(hMutex);
 
 		SetEvent(hEvent); // Avisa a Board de que pode voltar atualizar o TOP
 		ResetEvent(hEvent);
 
 		WaitForSingleObject(ptd->hEvent_Board, INFINITE); // Espera por alteracoes aos dados
+
+		EnterCriticalSection(ptd->pCs);
+		continua = *ptd->continua;
+		LeaveCriticalSection(ptd->pCs);
 	}
+
+	_tprintf_s(_T("\n[THREAD_BOARD] Ending...."));
 
 	FlushViewOfFile(sharedMemory, 0);
 
@@ -85,56 +88,78 @@ DWORD WINAPI ThreadGetClients(LPVOID data) {
 
 	TD_WRAPPER td_w[NCLIENTES];
 
-	HANDLE hThreads[NCLIENTES];
-
 	HANDLE hPipes[NCLIENTES];
+	HANDLE hThreadsClients[NCLIENTES];
 
 	HANDLE hSemClientes;
 	HANDLE hPipe;
-	BOOL continua;
-	DWORD id;
+
+	OVERLAPPED ov;
+
+	BOOL continua = TRUE;
+	DWORD id, err, nbytes;
 
 	for (DWORD i = 0; i < NCLIENTES; i++) {
 		hPipes[i] = NULL;
 	}
 
-	_tprintf_s(_T("\n[GETCLIENTS] Semáforo '%s' criado... (CreateSemaphore)"), SEM_CLIENTES);
 	hSemClientes = CreateSemaphore(NULL, NCLIENTES, NCLIENTES, SEM_CLIENTES);
 	if (hSemClientes == NULL) {
 		PrintErrorMsg(GetLastError(), _T("CreateSemaphore"));
 		exit(-1);
 	}
 
-	while (1) {
+	ptd->hEv_Conn = CreateEvent(NULL, TRUE, FALSE, NULL);
+	if (ptd->hEv_Conn == NULL) {
+		PrintErrorMsg(GetLastError(), _T("CreateEvent"));
+		exit(-1);
+	}
+
+	ZeroMemory(&ov, sizeof(OVERLAPPED));
+	ov.hEvent = ptd->hEv_Conn;
+
+	_tprintf_s(_T("\n[THREAD_GET_CLIENTS] Started..."));
+
+	while (continua) {
 
 		if (WaitForSingleObject(hSemClientes, 0) == WAIT_TIMEOUT) {
-			_tprintf_s(_T("\n[GETCLIENTS] N.º máximo de ligações atingido..."));
+			_tprintf_s(_T("\n[THREAD_GET_CLIENTS] N.º máximo de ligações atingido..."));
 			WaitForSingleObject(hSemClientes, INFINITE);
 		}
-
-		EnterCriticalSection(ptd->pCs);
-		continua = *ptd->continua;
-		LeaveCriticalSection(ptd->pCs);
-
-		if (!continua) { break; }
 
 		Sleep(1);
 
 		hPipe = CreateNamedPipe(PIPE_NAME, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
 			PIPE_WAIT | PIPE_TYPE_BYTE | PIPE_READMODE_BYTE,
-			NCLIENTES, sizeof(PEDIDO_LOGIN), sizeof(RESPOSTA_LOGIN), 1000, NULL);
+			NCLIENTES, sizeof(RESPOSTA_LISTA), sizeof(RESPOSTA_LISTA), 1000, NULL);
 		if (hPipe == INVALID_HANDLE_VALUE) {
 			PrintErrorMsg(GetLastError(), _T("CreateNamedPipe"));
 			exit(-1);
 		}
 
-		_tprintf_s(_T("\n[GETCLIENTS] A aguardar por um cliente... (ConnectNamedPipe)\n"));
-		if (!ConnectNamedPipe(hPipe, NULL)) {
-			PrintErrorMsg(GetLastError(), _T("ConnectNamedPipe"));
-			exit(-1);
+		if (!ConnectNamedPipe(hPipe, &ov)) {
+			err = GetLastError();
+			if (err == ERROR_IO_PENDING) {
+				_tprintf_s(_T("\n[THREAD_GET_CLIENTS] Awaiting..."));
+				WaitForSingleObject(ov.hEvent, INFINITE);
+				if (!GetOverlappedResult(hPipe, &ov, &nbytes, FALSE)) {
+					err = GetLastError();
+					if (err == ERROR_IO_INCOMPLETE) {
+						break;
+					} else {
+						PrintErrorMsg(err, _T("ThreadGetClients - GetOverlappedResult"));
+						exit(-1);
+					}
+				}
+				_tprintf_s(_T("\n[THREAD_GET_CLIENTS] Skirt..."));
+				ResetEvent(ov.hEvent);
+			} else {
+				PrintErrorMsg(GetLastError(), _T("ConnectNamedPipe"));
+				exit(-1);
+			}
 		}
 
-		id = getHandlePipeLivre(hPipes);
+		id = GetHandlePipeLivre(hPipes);
 		if (id == -1) { exit(-1); }
 
 		hPipes[id] = hPipe;
@@ -145,19 +170,25 @@ DWORD WINAPI ThreadGetClients(LPVOID data) {
 		td_w[id].hSemClientes = hSemClientes;
 		td_w[id].ptd = ptd;
 
-		hThreads[id] = CreateThread(NULL, 0, ThreadClient, (LPVOID)&td_w[id], 0, NULL);
-		if (hThreads[id] == NULL) {
+		hThreadsClients[id] = CreateThread(NULL, 0, ThreadClient, (LPVOID)&td_w[id], 0, NULL);
+		if (hThreadsClients[id] == NULL) {
 			PrintErrorMsg(GetLastError(), _T("CreateThread"));
 			exit(-1);
 		}
+
+		EnterCriticalSection(ptd->pCs);
+		continua = *ptd->continua;
+		LeaveCriticalSection(ptd->pCs);
 	}
 
 	for (DWORD i = 0; i < NCLIENTES; i++) {
 		if (hPipes[i] != NULL) {
-			WaitForSingleObject(hThreads[i], INFINITE);
-			CloseHandle(hThreads[i]);
+			WaitForSingleObject(hThreadsClients[i], INFINITE);
+			CloseHandle(hThreadsClients[i]);
 		}
 	}
+
+	_tprintf_s(_T("\n[THREAD_GET_CLIENTS] Closing..."));
 
 	CloseHandle(hSemClientes);
 
@@ -167,7 +198,6 @@ DWORD WINAPI ThreadGetClients(LPVOID data) {
 DWORD WINAPI ThreadClient(LPVOID data) {
 	TD_WRAPPER* ptd_w = (TD_WRAPPER*)data;
 
-	HANDLE hEv_Read;
 	OVERLAPPED ov;
 
 	DWORD codigo, nbytes, err;
@@ -176,14 +206,14 @@ DWORD WINAPI ThreadClient(LPVOID data) {
 
 	BOOL continua = TRUE;
 
-	hEv_Read = CreateEvent(NULL, TRUE, FALSE, NULL);
-	if (hEv_Read == NULL) {
+	ptd_w->ptd->hEv_Read[ptd_w->id] = CreateEvent(NULL, TRUE, FALSE, NULL);
+	if (ptd_w->ptd->hEv_Read[ptd_w->id] == NULL) {
 		PrintErrorMsg(GetLastError(), _T("CreateEvent"));
 		exit(-1);
 	}
 
 	ZeroMemory(&ov, sizeof(OVERLAPPED));
-	ov.hEvent = hEv_Read;
+	ov.hEvent = ptd_w->ptd->hEv_Read[ptd_w->id];
 
 	_tprintf_s(_T("\n\n[THREAD_CLIENTE - N.º%d] Viva! Ligação estabelecida...\n"), ptd_w->id);
 
@@ -193,9 +223,19 @@ DWORD WINAPI ThreadClient(LPVOID data) {
 			err = GetLastError();
 			if (err == ERROR_IO_PENDING) {
 				WaitForSingleObject(ov.hEvent, INFINITE);
+
+				EnterCriticalSection(ptd_w->ptd->pCs);
+				continua = *ptd_w->ptd->continua;
+				LeaveCriticalSection(ptd_w->ptd->pCs);
+
+				if (!continua) { break; }
+
 				if (!GetOverlappedResult(ptd_w->hPipe, &ov, &nbytes, FALSE)) {
 					err = GetLastError();
 					if (err == ERROR_OPERATION_ABORTED) {
+						break;
+					} else if (err == ERROR_BROKEN_PIPE) {
+						_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] O cliente desligou-se..."), ptd_w->id);
 						break;
 					} else {
 						_stprintf_s(errorMsg, SMALL_TEXT, _T("[THREAD_CLIENTE - N.º%d] - GetOverlappedResult"), ptd_w->id);
@@ -217,10 +257,7 @@ DWORD WINAPI ThreadClient(LPVOID data) {
 
 		if (!continua) { break; } 
 
-		if (!GerePedidos(ptd_w, codigo)) {
-			_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] O cliente desligou-se..."), ptd_w->id);
-			break;
-		}
+		if (!GerePedidos(ptd_w, codigo)) { break; }
 	}
 	
 	ReleaseSemaphore(ptd_w->hSemClientes, 1, NULL);
@@ -239,11 +276,79 @@ DWORD WINAPI ThreadClient(LPVOID data) {
 	ExitThread(6);
 }
 
+DWORD WINAPI ThreadPause(LPVOID data) {
+	TDATA_BOLSA* ptd = (TDATA_BOLSA*)data;
+
+	HANDLE hEv_Pause;
+	BOOL continua = TRUE;
+
+	HANDLE hTimer;
+	LARGE_INTEGER liTempo;
+
+	DWORD pauseTime;
+
+	_tprintf_s(_T("\n[THREAD_PAUSE] Started..."));
+
+	hEv_Pause = CreateEvent(NULL, FALSE, FALSE, NULL);
+	if (hEv_Pause == NULL) {
+		PrintErrorMsg(GetLastError(), _T("CreateEvent."));
+		exit(-1);
+	}
+
+	hTimer = CreateWaitableTimer(NULL, TRUE, NULL);
+	if (hTimer == NULL) {
+		PrintErrorMsg(GetLastError(), _T("CreateWaitableTimer."));
+		exit(-1);
+	}
+
+	EnterCriticalSection(ptd->pCs);
+	ptd->hEv_Pause = hEv_Pause;
+	LeaveCriticalSection(ptd->pCs);
+
+	while (1) {
+
+		WaitForSingleObject(hEv_Pause, INFINITE);
+
+		EnterCriticalSection(ptd->pCs);
+		continua = *ptd->continua;
+		*ptd->pause = TRUE;
+		pauseTime = ptd->pauseTime;
+		LeaveCriticalSection(ptd->pCs);
+
+		if (!continua) { break; }
+
+		_tprintf_s(_T("\n[THREAD_PAUSE] Pause started..."));
+
+		liTempo.QuadPart = pauseTime * -10000000LL;
+
+		if (!SetWaitableTimer(hTimer, &liTempo, 0, NULL, NULL, FALSE)) {
+			PrintErrorMsg(GetLastError(), _T("SetWaitableTimer."));
+			exit(-1);
+		}
+
+		WaitForSingleObjectEx(hTimer, INFINITE, TRUE);
+
+		_tprintf_s(_T("\n[THREAD_PAUSE] Pause ended..."));
+
+		EnterCriticalSection(ptd->pCs);
+		*ptd->pause = FALSE;
+		LeaveCriticalSection(ptd->pCs);
+	}
+
+	_tprintf_s(_T("\n[THREAD_PAUSE] Ended..."));
+
+	CloseHandle(hTimer);
+
+	ExitThread(6);
+}
+
 //|==============================================================================================|
 //|===============================| Comunicacao Cliente -> Bolsa |===============================|
 //|==============================================================================================|
 
 BOOL GerePedidos(TD_WRAPPER* threadData, const DWORD codigo) {
+	BOOL pause = FALSE;
+
 	// Recebe
 	_LOGIN login;
 	COMPRA compra;
@@ -254,80 +359,94 @@ BOOL GerePedidos(TD_WRAPPER* threadData, const DWORD codigo) {
 	RESPOSTA_LISTA r_lista;
 	RESPOSTA_COMPRA r_compra;
 	RESPOSTA_VENDA r_venda;
+	RESPOSTA_BALANCE r_balance;
 
-	if (codigo != P_LOGIN && !threadData->ligado) {
-		if (!SendAvisoLogin(threadData)) { return FALSE; }
-	}
+	r_login.codigo = R_LOGIN;
+	r_lista.codigo = R_LISTA;
+	r_compra.codigo = R_COMPRA;
+	r_venda.codigo = R_VENDA;
+	r_balance.codigo = R_BALANCE;
+
+	EnterCriticalSection(threadData->ptd->pCs);
+	pause = *threadData->ptd->pause;
+	LeaveCriticalSection(threadData->ptd->pCs);
 
 	switch (codigo) {
 		case P_LOGIN:
-		{
 			if (!GetLogin(threadData, &login)) { return FALSE; };
 
-			r_login = ValidaLogin(threadData, login);
+			r_login.resultado = ValidaLogin(threadData, login);
 
 			if (r_login.resultado) {
-				_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] O '%s' ligou-se..."), threadData->id, threadData->nomeUser);
+				_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] O '%s' ligou-se..."), 
+					threadData->id, threadData->nomeUser);
 			}
 
 			if (!SendRespostaLogin(threadData, r_login)) { return FALSE; }
 			break;
-		}
+
 		case P_LISTA:
-		{
-			_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] LISTA (%d bytes)..."), threadData->id, (DWORD)sizeof(DWORD));
+			_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] LISTA (%d bytes)..."), 
+				threadData->id, (DWORD)sizeof(DWORD));
+
+			if (!threadData->ligado) {
+				if (!SendAvisoLogin(threadData)) { return FALSE; }
+			} else if (pause) {
+				if (!SendAvisoPause(threadData)) { return FALSE; }
+			} else {
+				if (!SendRespostaLista(threadData, r_lista)) { return FALSE; }
+			}
+
 			break;
-		}
+
 		case P_COMPRA: 
-		{
-			_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] COMPRA (%d bytes)..."), threadData->id, (DWORD)sizeof(DWORD));
+			_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] COMPRA (%d bytes)..."), 
+				threadData->id, (DWORD)sizeof(DWORD));
 			
 			if (!GetCompra(threadData, &compra)) { return FALSE; }
-			r_compra.codigo = R_COMPRA;
-			EnterCriticalSection(threadData->ptd->pCs);
-			r_compra.resultado = ValidaCompra(threadData, compra);
-			LeaveCriticalSection(threadData->ptd->pCs);
-			if (r_compra.resultado) {
-				_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] O '%s' comprou '%d' ações da empresa '%s'..."), threadData->id, threadData->nomeUser, compra.numAcoes, compra.nomeEmpresa);
-			}
-			else {
-				_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] A compra de '%d' ações da empresa '%s' pelo usuário '%s' falhou..."), threadData->id, compra.numAcoes, compra.nomeEmpresa, threadData->nomeUser);
+
+			if (!threadData->ligado) {
+				if (!SendAvisoLogin(threadData)) { return FALSE; }
+			} else if (pause) {
+				if (!SendAvisoPause(threadData)) { return FALSE; }
+			} else {
+				r_compra.resultado = ValidaCompra(threadData, compra);
+				if (!SendRespostaCompra(threadData, r_compra)) { return FALSE; }
 			}
 
-
-			SendRespostaCompra(threadData, r_compra);
 			break;
-		}
+
 		case P_VENDA:
-		{
-			_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] VENDA (%d bytes)..."), threadData->id, (DWORD)sizeof(DWORD));
-			if(!GetVenda(threadData, &venda)) { return FALSE; }
-			r_venda.codigo = R_VENDA;
-			EnterCriticalSection(threadData->ptd->pCs);
-			r_venda.resultado = ValidaVenda(threadData, venda);
-			LeaveCriticalSection(threadData->ptd->pCs);
-			if (r_venda.resultado) {
-				_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] O '%s' vendeu '%d' ações da empresa '%s'..."), threadData->id, threadData->nomeUser, venda.numAcoes, venda.nomeEmpresa);
-			}
-			else {
-				_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] A venda de '%d' ações da empresa '%s' pelo usuário '%s' falhou..."), threadData->id, venda.numAcoes, venda.nomeEmpresa, threadData->nomeUser);
+			_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] VENDA (%d bytes)..."), 
+				threadData->id, (DWORD)sizeof(DWORD));
+			
+			if (!GetVenda(threadData, &venda)) { return FALSE; }
+			
+			if (!threadData->ligado) {
+				if (!SendAvisoLogin(threadData)) { return FALSE; }
+			} else if (pause) {
+				if (!SendAvisoPause(threadData)) { return FALSE; }
+			} else {
+				r_venda.resultado = ValidaVenda(threadData, venda);
+				if (!SendRespostaVenda(threadData, r_venda)) { return FALSE; }
 			}
 
-			SendRespostaVenda(threadData, r_venda);
 			break;
-		}
+
 		case P_BALANCE:
-		{
-			_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] BALANCE (%d bytes)..."), threadData->id, (DWORD)sizeof(DWORD));
-			break;
-		}
-		case P_EXIT:
-		{
-			_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] EXIT (%d bytes)..."), threadData->id, (DWORD)sizeof(DWORD));
+			_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] BALANCE (%d bytes)..."), 
+				threadData->id, (DWORD)sizeof(DWORD));
 
-			return FALSE;
+			if (!threadData->ligado) {
+				if (!SendAvisoLogin(threadData)) { return FALSE; }
+			} else if (pause) {
+				if (!SendAvisoPause(threadData)) { return FALSE; }
+			} else {
+				if (!SendRespostaBalance(threadData, r_balance)) { return FALSE; }
+			}
+
 			break;
-		}
+
 		default:
 			break;
 	}
@@ -387,10 +506,7 @@ BOOL GetVenda(const TD_WRAPPER* threadData, VENDA* venda) {
 //|===============================| Validação de operações |===============================|
 //|========================================================================================|
 
-RESPOSTA_LOGIN ValidaLogin(TD_WRAPPER* threadData, const _LOGIN login) {
-	RESPOSTA_LOGIN r_login;
-
-	r_login.codigo = R_LOGIN;
+BOOL ValidaLogin(TD_WRAPPER* threadData, const _LOGIN login) {
 
 	EnterCriticalSection(threadData->ptd->pCs);
 	for (DWORD i = 0; i < *threadData->ptd->numUsers; i++) {
@@ -403,27 +519,14 @@ RESPOSTA_LOGIN ValidaLogin(TD_WRAPPER* threadData, const _LOGIN login) {
 
 			LeaveCriticalSection(threadData->ptd->pCs);
 
-			r_login.resultado = TRUE;
 			threadData->ligado = TRUE;
-			return r_login;
+			return TRUE;
 		}
 	}
 	LeaveCriticalSection(threadData->ptd->pCs);
 
-	r_login.resultado = FALSE;
 	threadData->ligado = FALSE;
-	return r_login;
-}
-
-USER* getUser(const TCHAR* Nome, TDATA_BOLSA* dados) {
-
-	for (DWORD i = 0; i < *(dados->numUsers); i++) {
-		if (_tcscmp(ToLowerString(dados->users[i].nome), ToLowerString(Nome)) == 0) {
-			return &dados->users[i];
-		}
-	}
-
-	return NULL;
+	return FALSE;
 }
 
 BOOL ValidaCompra(TD_WRAPPER* threadData, const COMPRA compra) {
@@ -431,12 +534,12 @@ BOOL ValidaCompra(TD_WRAPPER* threadData, const COMPRA compra) {
 	if (threadData == NULL) { return FALSE; }
 
 	BOOL empresaEncontrada = FALSE, empresaJaPossuida = FALSE;
-	DWORD indiceEmpresa = 0, indiceEmpresaUsuario = 0;
+	DWORD indiceEmpresa = 0, indiceEmpresaUser = 0;
 	DOUBLE precoTotalCompra = 0;
-	
-	USER* usuario = getUser(threadData->nomeUser, threadData->ptd);
 
-	if (usuario == NULL || usuario->carteira.numEmpresas >= 5) {
+	USER* user = GetPtrToUser(threadData->nomeUser, threadData->ptd);
+
+	if (user == NULL || user->carteira.numEmpresas >= 5) {
 		return FALSE;
 	}
 
@@ -453,12 +556,12 @@ BOOL ValidaCompra(TD_WRAPPER* threadData, const COMPRA compra) {
 
 	precoTotalCompra = compra.numAcoes * threadData->ptd->empresas[indiceEmpresa].preco;
 
-	if (usuario->carteira.saldo < precoTotalCompra || threadData->ptd->empresas[indiceEmpresa].numAcoes < compra.numAcoes) {
+	if (user->carteira.saldo < precoTotalCompra || threadData->ptd->empresas[indiceEmpresa].numAcoes < compra.numAcoes) {
 		return FALSE;
 	}
 
-	for (indiceEmpresaUsuario = 0; indiceEmpresaUsuario < usuario->carteira.numEmpresas; indiceEmpresaUsuario++) {
-		if (_tcscmp(ToLowerString(usuario->carteira.posse_empresas[indiceEmpresaUsuario].empresasNomes), ToLowerString(compra.nomeEmpresa)) == 0) {
+	for (indiceEmpresaUser = 0; indiceEmpresaUser < user->carteira.numEmpresas; indiceEmpresaUser++) {
+		if (_tcscmp(ToLowerString(user->carteira.posse_empresas[indiceEmpresaUser].nome), ToLowerString(compra.nomeEmpresa)) == 0) {
 			empresaJaPossuida = TRUE;
 			break;
 		}
@@ -466,15 +569,15 @@ BOOL ValidaCompra(TD_WRAPPER* threadData, const COMPRA compra) {
 
 	if (empresaJaPossuida) {
 		threadData->ptd->empresas[indiceEmpresa].numAcoes -= compra.numAcoes;
-		usuario->carteira.saldo -= precoTotalCompra;
-		usuario->carteira.posse_empresas[indiceEmpresaUsuario].acoes += compra.numAcoes;
+		user->carteira.saldo -= precoTotalCompra;
+		user->carteira.posse_empresas[indiceEmpresaUser].numAcoes += compra.numAcoes;
 	}
 	else {
-		_tcscpy_s(usuario->carteira.posse_empresas[usuario->carteira.numEmpresas].empresasNomes, SMALL_TEXT, threadData->ptd->empresas[indiceEmpresa].nome);
+		_tcscpy_s(user->carteira.posse_empresas[user->carteira.numEmpresas].nome, SMALL_TEXT, threadData->ptd->empresas[indiceEmpresa].nome);
 		threadData->ptd->empresas[indiceEmpresa].numAcoes -= compra.numAcoes;
-		usuario->carteira.saldo -= precoTotalCompra;
-		usuario->carteira.posse_empresas[usuario->carteira.numEmpresas].acoes = compra.numAcoes;
-		usuario->carteira.numEmpresas++;
+		user->carteira.saldo -= precoTotalCompra;
+		user->carteira.posse_empresas[user->carteira.numEmpresas].numAcoes = compra.numAcoes;
+		user->carteira.numEmpresas++;
 	}
 
 	SetEvent(threadData->ptd->hEvent_Board);
@@ -484,26 +587,22 @@ BOOL ValidaCompra(TD_WRAPPER* threadData, const COMPRA compra) {
 }
 
 BOOL ValidaVenda(TD_WRAPPER* threadData, const VENDA venda) {
-
 	if (threadData == NULL) { return FALSE; }
 
-	DWORD indiceEmpresaUsuario = 0, indiceEmpresaBolsa = 0;
-	BOOL empresaEncontradaBolsa = FALSE, empresaEncontradaUsuario = FALSE;
+	DWORD indiceEmpresaUser = 0, indiceEmpresaBolsa = 0;
+	BOOL empresaEncontradaBolsa = FALSE, empresaEncontradaUser = FALSE;
 
 
-	USER* usuario = getUser(threadData->nomeUser, threadData->ptd);
+	USER* user = GetPtrToUser(threadData->nomeUser, threadData->ptd);
+	if (user == NULL) { return FALSE; }
 
-	if (usuario == NULL) {
-		return FALSE;
-	}
-
-	for (indiceEmpresaUsuario = 0; indiceEmpresaUsuario < usuario->carteira.numEmpresas; indiceEmpresaUsuario++) {
-		if (_tcscmp(ToLowerString(usuario->carteira.posse_empresas[indiceEmpresaUsuario].empresasNomes), ToLowerString(venda.nomeEmpresa)) == 0) {
-			empresaEncontradaUsuario = TRUE;
+	for (indiceEmpresaUser = 0; indiceEmpresaUser < user->carteira.numEmpresas; indiceEmpresaUser++) {
+		if (_tcscmp(ToLowerString(user->carteira.posse_empresas[indiceEmpresaUser].nome), ToLowerString(venda.nomeEmpresa)) == 0) {
+			empresaEncontradaUser = TRUE;
 			break;
 		}
 	}
-	if (!empresaEncontradaUsuario) {
+	if (!empresaEncontradaUser) {
 		return FALSE;
 	}
 
@@ -513,20 +612,20 @@ BOOL ValidaVenda(TD_WRAPPER* threadData, const VENDA venda) {
 			break;
 		}
 	}
-	if (!empresaEncontradaBolsa || usuario->carteira.posse_empresas[indiceEmpresaUsuario].acoes < venda.numAcoes) {
+	if (!empresaEncontradaBolsa || user->carteira.posse_empresas[indiceEmpresaUser].numAcoes < venda.numAcoes) {
 		return FALSE;
 	}
 
-	usuario->carteira.posse_empresas[indiceEmpresaUsuario].acoes -= venda.numAcoes;
+	user->carteira.posse_empresas[indiceEmpresaUser].numAcoes -= venda.numAcoes;
 	threadData->ptd->empresas[indiceEmpresaBolsa].numAcoes += venda.numAcoes;
-	usuario->carteira.saldo += venda.numAcoes * threadData->ptd->empresas[indiceEmpresaBolsa].preco;
+	user->carteira.saldo += venda.numAcoes * threadData->ptd->empresas[indiceEmpresaBolsa].preco;
 
 
-	if (usuario->carteira.posse_empresas[indiceEmpresaUsuario].acoes <= 0) {
-		for (DWORD i = indiceEmpresaUsuario; (i + 1) < usuario->carteira.numEmpresas; i++) {
-			usuario->carteira.posse_empresas[i] = usuario->carteira.posse_empresas[i + 1];
+	if (user->carteira.posse_empresas[indiceEmpresaUser].numAcoes <= 0) {
+		for (DWORD i = indiceEmpresaUser; (i + 1) < user->carteira.numEmpresas; i++) {
+			user->carteira.posse_empresas[i] = user->carteira.posse_empresas[i + 1];
 		}
-		usuario->carteira.numEmpresas--;
+		user->carteira.numEmpresas--;
 	}
 
 	SetEvent(threadData->ptd->hEvent_Board);
@@ -546,8 +645,7 @@ BOOL SendRespostaLogin(const TD_WRAPPER* threadData, const RESPOSTA_LOGIN r_logi
 		err = GetLastError();
 		if (err == ERROR_PIPE_NOT_CONNECTED) {
 			return FALSE;
-		}
-		else {
+		} else {
 			PrintErrorMsg(err, _T("WriteFile"));
 			exit(-1);
 		}
@@ -558,10 +656,17 @@ BOOL SendRespostaLogin(const TD_WRAPPER* threadData, const RESPOSTA_LOGIN r_logi
 	return TRUE;
 }
 
-BOOL SendAvisoLogin(const TD_WRAPPER* threadData) {
-	DWORD nbytes, err, codigo = R_AVISO_LOGIN;
+BOOL SendRespostaLista(const TD_WRAPPER* threadData, RESPOSTA_LISTA r_lista) {
+	DWORD nbytes, err, numEmpresas;
+	EMPRESA empresas[MAX_EMPRESAS];
+	TCHAR buffer[BIG_TEXT];
 
-	if (!WriteFile(threadData->hPipe, &codigo, sizeof(DWORD), &nbytes, NULL)) {
+	EnterCriticalSection(threadData->ptd->pCs);
+	numEmpresas = r_lista.numEmpresas = *threadData->ptd->numEmpresas;
+	CopyMemory(empresas, threadData->ptd->empresas, sizeof(empresas));
+	LeaveCriticalSection(threadData->ptd->pCs);
+
+	if (!WriteFile(threadData->hPipe, &r_lista, sizeof(r_lista), &nbytes, NULL)) {
 		err = GetLastError();
 		if (err == ERROR_PIPE_NOT_CONNECTED) {
 			return FALSE;
@@ -570,10 +675,37 @@ BOOL SendAvisoLogin(const TD_WRAPPER* threadData) {
 			exit(-1);
 		}
 	}
-	_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] Enviei R_AVISO_LOGIN (%d bytes)..."), 
+	_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] Enviei RESPOSTA_LSITA (%d bytes)..."),
 		threadData->id, nbytes);
 
+	for (DWORD i = 0; i < numEmpresas; i++) {
+
+		MakeRespostaLista(empresas[i], i, buffer);
+
+		if (!WriteFile(threadData->hPipe, buffer, sizeof(buffer), &nbytes, NULL)) {
+			err = GetLastError();
+			if (err == ERROR_PIPE_NOT_CONNECTED) {
+				return FALSE;
+			}
+			else {
+				PrintErrorMsg(err, _T("WriteFile"));
+				exit(-1);
+			}
+		}
+		_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] Enviei lista (%d bytes)..."),
+			threadData->id, nbytes);
+	}
+
 	return TRUE;
+}
+
+void MakeRespostaLista(const EMPRESA empresa, const DWORD index, TCHAR buffer[]) {
+
+	_tcscpy_s(buffer, BIG_TEXT, _T(""));
+
+	// Percorre todas as empresas e concatena informações de cada uma na lista
+	_stprintf_s(buffer, BIG_TEXT, _T("\n--------------------------------+%d\nNome: '%s'\nN.º de ações para venda : %d\nPreço por ação : %.2f"),
+		index + 1, empresa.nome, empresa.numAcoes, empresa.preco);
 }
 
 BOOL SendRespostaCompra(const TD_WRAPPER* threadData, const RESPOSTA_COMPRA r_compra) {
@@ -593,7 +725,6 @@ BOOL SendRespostaCompra(const TD_WRAPPER* threadData, const RESPOSTA_COMPRA r_co
 		threadData->id, nbytes);
 
 	return TRUE;
-
 }
 
 BOOL SendRespostaVenda(const TD_WRAPPER* threadData, const RESPOSTA_VENDA r_venda) {
@@ -613,7 +744,69 @@ BOOL SendRespostaVenda(const TD_WRAPPER* threadData, const RESPOSTA_VENDA r_vend
 		threadData->id, nbytes);
 
 	return TRUE;
+}
 
+BOOL SendRespostaBalance(const TD_WRAPPER* threadData, RESPOSTA_BALANCE r_balance) {
+	DWORD nbytes, err;
+	USER* user;
+
+	user = GetPtrToUser(threadData->nomeUser, threadData->ptd);
+	if (user == NULL) { return FALSE; }
+
+	_stprintf_s(r_balance.saldo, SMALL_TEXT, _T("Saldo: %.2f"), user->carteira.saldo);
+
+	if (!WriteFile(threadData->hPipe, &r_balance, sizeof(RESPOSTA_BALANCE), &nbytes, NULL)) {
+		err = GetLastError();
+		if (err == ERROR_PIPE_NOT_CONNECTED) {
+			return FALSE;
+		}
+		else {
+			PrintErrorMsg(err, _T("WriteFile"));
+			exit(-1);
+		}
+	}
+	_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] Enviei RESPOSTA_BALANCE (%d bytes)..."),
+		threadData->id, nbytes);
+
+	return TRUE;
+}
+
+BOOL SendAvisoLogin(const TD_WRAPPER* threadData) {
+	DWORD nbytes, err, codigo = R_AVISO_LOGIN;
+
+	if (!WriteFile(threadData->hPipe, &codigo, sizeof(DWORD), &nbytes, NULL)) {
+		err = GetLastError();
+		if (err == ERROR_PIPE_NOT_CONNECTED) {
+			return FALSE;
+		}
+		else {
+			PrintErrorMsg(err, _T("WriteFile"));
+			exit(-1);
+		}
+	}
+	_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] Enviei R_AVISO_LOGIN (%d bytes)..."),
+		threadData->id, nbytes);
+
+	return TRUE;
+}
+
+BOOL SendAvisoPause(const TD_WRAPPER* threadData) {
+	DWORD nbytes, err, codigo = R_AVISO_PAUSE;
+
+	if (!WriteFile(threadData->hPipe, &codigo, sizeof(DWORD), &nbytes, NULL)) {
+		err = GetLastError();
+		if (err == ERROR_PIPE_NOT_CONNECTED) {
+			return FALSE;
+		}
+		else {
+			PrintErrorMsg(err, _T("WriteFile"));
+			exit(-1);
+		}
+	}
+	_tprintf_s(_T("\n[THREAD_CLIENTE - N.º%d] Enviei R_AVISO_LOGIN (%d bytes)..."),
+		threadData->id, nbytes);
+
+	return TRUE;
 }
 
 //|==========================================================================|
@@ -640,11 +833,11 @@ BOOL ExecutaComando(const CMD comando, TDATA_BOLSA* threadData, TCHAR* errorMsg)
 			break;
 
 		case 4:
-			PAUSE();
+			if (!PAUSE(comando, threadData)) { return FALSE; }
 			break;
 
 		case 5:
-			CLOSE();
+			if (!CLOSE(threadData)) { return FALSE; }
 			break;
 
 		default:
@@ -754,12 +947,33 @@ void USERS(TDATA_BOLSA* threadData) {
 	LeaveCriticalSection(threadData->pCs);
 }
 
-void PAUSE() {
+BOOL PAUSE(const CMD comando, TDATA_BOLSA* threadData) {
 
+	EnterCriticalSection(threadData->pCs);
+	threadData->pauseTime = _ttoi(comando.Args[1]);
+	SetEvent(threadData->hEv_Pause);
+	LeaveCriticalSection(threadData->pCs);
+
+	return TRUE;
 }
 
-void CLOSE() {
+BOOL CLOSE(TDATA_BOLSA* threadData) {
 
+	EnterCriticalSection(threadData->pCs);
+	*threadData->continua = FALSE;
+	LeaveCriticalSection(threadData->pCs);
+
+	for (DWORD i = 0; i < NCLIENTES; i++) {
+		SetEvent(threadData->hEv_Read[i]);
+	}
+
+	SetEvent(threadData->hEv_Conn);
+
+	SetEvent(threadData->hEvent_Board);
+
+	SetEvent(threadData->hEv_Pause);
+
+	return TRUE;
 }
 
 //|===============================================================================================|
@@ -1042,7 +1256,7 @@ BOOL SalvaUsers(const USER users[], const DWORD numUsers) {
 //|===============================| Outras |===============================|
 //|========================================================================|
 
-DWORD getNCLIENTES() {
+DWORD GetNCLIENTES() {
 	TCHAR chave_completa[TAM] = _T("Software\\BolsaValores_SO2");
 	HKEY chave;
 	DWORD res;
@@ -1137,10 +1351,21 @@ int ComparaEmpresas(const void* a, const void* b) {
 	return 0;
 }
 
-DWORD getHandlePipeLivre(HANDLE hPipes[]) {
+DWORD GetHandlePipeLivre(HANDLE hPipes[]) {
 	for (DWORD i = 0; i < NCLIENTES; i++) {
 		if (hPipes[i] == NULL) { return i; }
 	}
 
 	return -1;
+}
+
+USER* GetPtrToUser(const TCHAR* Nome, TDATA_BOLSA* dados) {
+
+	for (DWORD i = 0; i < *(dados->numUsers); i++) {
+		if (_tcscmp(ToLowerString(dados->users[i].nome), ToLowerString(Nome)) == 0) {
+			return &dados->users[i];
+		}
+	}
+
+	return NULL;
 }

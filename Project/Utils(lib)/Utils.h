@@ -22,10 +22,14 @@ void PrintErrorMsg(
 	const TCHAR* msg);
 
 // Mostra no ecra toda a informacao relativa a empresa
-void PrintEmpresas(const EMPRESA empresas[], const DWORD numEmpresas);
+void PrintEmpresas(
+	const EMPRESA empresas[],
+	const DWORD numEmpresas);
 
 // Mostra no ecra toda a informacao relativa aos users
-void PrintUsers(const USER users[], const DWORD numUsers);
+void PrintUsers(
+	const USER users[], 
+	const DWORD numUsers);
 
 // Verifica se str é um inteiro
 BOOL IsInteger(const TCHAR* str);
