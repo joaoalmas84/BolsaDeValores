@@ -758,7 +758,7 @@ BOOL ValidaCompra(TD_WRAPPER* threadData, const COMPRA compra) {
 
 	threadData->ptd->empresas[indiceEmpresa].preco += threadData->ptd->empresas[indiceEmpresa].preco * (((DOUBLE)RandomValue(4, 1)) / 100);
 	_tcscpy_s(threadData->ptd->ultimaTransacao, SMALL_TEXT, threadData->ptd->empresas[indiceEmpresa].nome);
-
+	qsort(threadData->ptd->empresas, *threadData->ptd->numEmpresas, sizeof(EMPRESA), ComparaEmpresas);
 	SetEvent(threadData->ptd->hEvent_Board);
 	ResetEvent(threadData->ptd->hEvent_Board);
 
@@ -803,6 +803,7 @@ BOOL ValidaVenda(TD_WRAPPER* threadData, const VENDA venda) {
 
 	if (threadData->ptd->empresas[indiceEmpresaBolsa].preco > aux) {
 		threadData->ptd->empresas[indiceEmpresaBolsa].preco -= aux;
+		qsort(threadData->ptd->empresas, *threadData->ptd->numEmpresas, sizeof(EMPRESA), ComparaEmpresas);
 	}
 
 	if (user->carteira.posse_empresas[indiceEmpresaUser].numAcoes <= 0) {
