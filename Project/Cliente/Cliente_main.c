@@ -12,8 +12,10 @@
 
 int _tmain(int argc, TCHAR* argv[]) {
 	int setmodeReturn;
+	DWORD err;
 
 	BOOL continua = TRUE;
+	BOOL loggedIn = FALSE;
 
 	HANDLE hPipe; // HANDLE do pipe
 
@@ -37,12 +39,19 @@ int _tmain(int argc, TCHAR* argv[]) {
 	setmodeReturn = _setmode(_fileno(stderr), _O_WTEXT);
 #endif 
 
-	_tprintf_s(_T("\n[CLIENTE] À Espera do named pipe '%s'... (WaitNamedPipe)"), PIPE_NAME);
+	_tprintf_s(_T("\n[CLIENTE] A estabelecer ligação com a Bolsa... (%s)"), PIPE_NAME);
 	if (!WaitNamedPipe(PIPE_NAME, NMPWAIT_WAIT_FOREVER)) {
-		PrintErrorMsg(GetLastError(), _T("WaitNamedPipe"));
+		err = GetLastError();
+		if (err == ERROR_FILE_NOT_FOUND) {
+			_tprintf_s(_T("\n[CLIENTE] O processo Bolsa não se encontra em execução...\n"));
+			return -1;
+		} else {
+			PrintErrorMsg(err, _T("WaitNamedPipe"));
+			return -1;
+		}
 	}
 
-	_tprintf_s(_T("\n[CLIENTE] Ligação ao pipe do servidor estabelecida... (CreateFile)"));
+	_tprintf_s(_T("\n[CLIENTE] Ligação estabelecida..."));
 	hPipe = CreateFile(PIPE_NAME, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING,
 		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
 	if (hPipe == INVALID_HANDLE_VALUE) {
@@ -56,6 +65,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 	}
 
 	threadData.continua = &continua;
+	threadData.loggedIn = &loggedIn;
 	threadData.hPipe = hPipe;
 	threadData.hThread_Main = OpenThread(THREAD_ALL_ACCESS, FALSE, GetCurrentThreadId());
 	if (threadData.hThread_Main == NULL) {
@@ -64,6 +74,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 	}
 	threadData.pCs = &cs;
 
+	// Lançamento da ThreadRead
 	hThread_Read = CreateThread(NULL, 0, ThreadRead, (LPVOID)&threadData, 0, NULL);
 	if (hThread_Read == NULL) {
 		PrintErrorMsg(GetLastError(), _T("CreateThread"));
@@ -72,7 +83,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 		return 1;
 	}
 
-	//system("cls");
+	Sleep(1);  // <- Este sleep apenas serve para manipular a ordem em que aparecem os printf's
 
 	_tprintf_s(_T("\n\n[CLIENTE] Bem vindo..."));
 

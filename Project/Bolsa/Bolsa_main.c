@@ -27,7 +27,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 	USER* users;		// O seu tamanho sera MAX_USERS
 	DWORD numUsers = 0; // Numero de users registados
 
-	// Flag para terminar as threads
+	// Flags do sistema
 	BOOL continua = TRUE;		
 	BOOL pause = FALSE;
 
@@ -73,6 +73,8 @@ int _tmain(int argc, TCHAR* argv[]) {
 		CloseHandle(hSem);
 		return 1;
 	}
+
+	_tprintf_s(_T("\n[BOLSA] nclientes: %d"), nclientes);
 
 	if (!InitializeCriticalSectionAndSpinCount(&cs, 0)) {
 		PrintErrorMsg(GetLastError(), _T("InitializeCriticalSectionAndSpinCount"));
@@ -120,12 +122,6 @@ int _tmain(int argc, TCHAR* argv[]) {
 	threadData.pCs = &cs;
 
 	threadData.ultimaTransacao = ultimaTransacao;
-
-	threadData.hThreadMain = OpenThread(THREAD_ALL_ACCESS, FALSE, GetCurrentThreadId());
-	if (threadData.hThreadMain == NULL) {
-		PrintErrorMsg(GetLastError(), _T("OpenThread"));
-		exit(-1);
-	}
 
 	if (FileExists(FILE_EMPRESAS)) {
 		if (!CarregaEmpresas(empresas, &numEmpresas)) {		
@@ -194,7 +190,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 		return 1;
 	}
 
-	// Lançamento da Pause 
+	// Lançamento da ThreadPause 
 	hThreadPause = CreateThread(NULL, 0, ThreadPause, (LPVOID)&threadData, 0, NULL);
 	if (hThreadPause == NULL) {
 		PrintErrorMsg(GetLastError(), _T("Erro ao lançar ThreadGetClients"));
@@ -219,9 +215,9 @@ int _tmain(int argc, TCHAR* argv[]) {
 		return 1;
 	}
 
-	Sleep(1);
+	Sleep(50); // <- Este sleep apenas serve para manipular a ordem em que aparecem os printf's
 
-	//system("cls");
+	_tprintf_s(_T("\n\n[BOLSA] Bem vindo..."));
 
 	while (1) {
 		if (!GetCmd(input)) { continue; }
@@ -239,6 +235,8 @@ int _tmain(int argc, TCHAR* argv[]) {
 			if (comando.Index == 5) { break; }
 		}
 	}
+
+	_tprintf_s(_T("\n\n[BOLSA] A terminar..."));
 
 	WaitForSingleObject(hThreadPause, INFINITE);
 	CloseHandle(hThreadPause);

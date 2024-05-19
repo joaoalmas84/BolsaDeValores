@@ -157,9 +157,8 @@ BOOL CheckArgsConsistency_Cliente(const CMD cmd, TCHAR* msg) {
 //|========================================================================================|
 
 BOOL GetCmd(TCHAR* input) {
-	_tcscpy_s(input, TAM, _T(""));
-
-	_tprintf_s(_T("\nComando -> "));
+	Sleep(50);	// <- Este sleep apenas serve para manipular a ordem em que aparecem os printf's
+	_tprintf_s(_T("\n\nComando -> "));
 	_getts_s(input, TAM);
 
 	return (_tcscmp(input, _T("")) == 0) ? FALSE : TRUE;

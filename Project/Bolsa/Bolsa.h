@@ -16,8 +16,8 @@ typedef struct {
 
 	BOOL* continua;			// Ponteiro para a flag continua localizada na funcao main 
 
-	DWORD pauseTime;
-	BOOL* pause;
+	DWORD pauseTime;		// Tempo do WaitableTimer da ThreadPause
+	BOOL* pause;			// Ponteiro para a flag pause localizada na função main
 
 	EMPRESA* empresas;		// Ponteiro para o array de empresas localizado na funcao main
 	DWORD* numEmpresas;		// Ponteiro para o numero de empresas registadas localizado na funcao main
@@ -28,15 +28,15 @@ typedef struct {
 	HANDLE hEvent_Board;	// Evento para avisar a Board de que a informacao foi atualizada
 
 	CRITICAL_SECTION* pCs;	// Ponteiro para a Critical Section que protege alteracoes as variaveis 
-							// acima declaradas localizada na funcao main
-	HANDLE hThreadMain;
-
-	HANDLE hEv_Read[NCLIENTES];
-
-	HANDLE hEv_Conn;
-	HANDLE hEv_Pause;
-
+							// acima declaradas localizada na funcao main	
 	TCHAR* ultimaTransacao;
+
+	HANDLE hEv_Pause;		// HANDLE para o evento da ThreadPause
+	HANDLE hSemClientes;
+
+	// Overlapped I/O
+	HANDLE hEv_Read[NCLIENTES]; // Array de HANDLE's para o evento da operação de ReadFile de cada ThreadClient
+	HANDLE hEv_Conn;			// HANDLE para o evento da operação ConnectNamedPipe da ThreadGetClients
 
 } TDATA_BOLSA;
 
@@ -63,6 +63,35 @@ DWORD WINAPI ThreadGetClients(LPVOID data);
 DWORD WINAPI ThreadClient(LPVOID data);
 
 DWORD WINAPI ThreadPause(LPVOID data);
+
+//|==========================================================================|
+//|===============================| Comandos |===============================|
+//|==========================================================================|
+
+BOOL ExecutaComando(
+	const CMD comando,
+	TDATA_BOLSA* threadData,
+	TCHAR* errorMsg);
+
+BOOL ADDC(
+	const CMD comando,
+	TDATA_BOLSA* threadData,
+	TCHAR* mensagem);
+
+void LISTC(TDATA_BOLSA* threadData);
+
+BOOL STOCK(
+	const CMD comando,
+	TDATA_BOLSA* threadData,
+	TCHAR* mensagem);
+
+void USERS(TDATA_BOLSA* threadData);
+
+BOOL PAUSE(
+	const CMD comando,
+	TDATA_BOLSA* threadData);
+
+BOOL CLOSE(TDATA_BOLSA* threadData);
 
 //|==============================================================================================|
 //|===============================| Comunicacao Cliente -> Bolsa |===============================|
@@ -132,35 +161,6 @@ BOOL SendRespostaBalance(
 BOOL SendAvisoLogin(const TD_WRAPPER* threadData);
 
 BOOL SendAvisoPause(const TD_WRAPPER* threadData);
-
-//|==========================================================================|
-//|===============================| Comandos |===============================|
-//|==========================================================================|
-
-BOOL ExecutaComando(
-	const CMD comando, 
-	TDATA_BOLSA* threadData,
-	TCHAR* errorMsg);
-
-BOOL ADDC(
-	const CMD comando, 
-	TDATA_BOLSA* threadData,
-	TCHAR* mensagem);
-
-void LISTC(TDATA_BOLSA* threadData);
-
-BOOL STOCK(
-	const CMD comando, 
-	TDATA_BOLSA* threadData,
-	TCHAR* mensagem);
-
-void USERS(TDATA_BOLSA* threadData);
-
-BOOL PAUSE(
-	const CMD comando, 
-	TDATA_BOLSA* threadData);
-
-BOOL CLOSE(TDATA_BOLSA* threadData);
 
 //|===============================================================================================|
 //|===============================| Ficheiros de Dados - Empresas |===============================|

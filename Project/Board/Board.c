@@ -12,14 +12,13 @@
 DWORD WINAPI ThreadGetChar(LPVOID data) {
     TDATA_BOARD* ptd = (TDATA_BOARD*)data;
 
-    TCHAR c =  _gettchar();
+    TCHAR c = _gettchar();
 
     EnterCriticalSection(ptd->pCs);
     ptd->continua = FALSE;
     LeaveCriticalSection(ptd->pCs);
 
     SetEvent(ptd->hEvent_Exit);
-    ResetEvent(ptd->hEvent_Exit);
 
     ExitThread(6);
 }
