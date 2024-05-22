@@ -18,6 +18,7 @@ int _tmain(int argc, TCHAR* argv[]) {
     DWORD N; 
     
     EMPRESA empresas[MAX_EMPRESAS_TO_SHM];
+    DWORD numEmpresas;
     BOOL continua = TRUE;
 
     // Variáveis da Thread
@@ -116,9 +117,15 @@ int _tmain(int argc, TCHAR* argv[]) {
     }
 
     WaitForSingleObject(hMutex_SHM, INFINITE);
+    numEmpresas = sharedMemory->numEmpresas;
     _tcscpy_s(ultimaTransacao, SMALL_TEXT, sharedMemory->ultimaTransacao);
     CopyMemory(empresas, sharedMemory->empresas, sizeof(EMPRESA) * MAX_EMPRESAS_TO_SHM);
     ReleaseMutex(hMutex_SHM);
+
+    if (numEmpresas <= 0) {
+        _tprintf_s(_T("\nAinda não existem empresas registadas no sistema"));
+        return 1;
+    }
 
     hEvents[0] = hEvent_SHM;
     hEvents[1] = threadData.hEvent_Exit;
@@ -126,7 +133,7 @@ int _tmain(int argc, TCHAR* argv[]) {
     while (continua) {
         system("cls");
 
-        PrintTop(empresas, N);
+        PrintTop(empresas, N, numEmpresas);
         _tprintf_s(_T("\n\tÚltima Transação : '%s'"), ultimaTransacao);
 
         _tprintf_s(_T("\n\n\nPrima ENTER para terminar..."));

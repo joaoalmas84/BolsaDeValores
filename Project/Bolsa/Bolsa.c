@@ -54,6 +54,7 @@ DWORD WINAPI ThreadBoard(LPVOID data) {
 	while (continua) {
 		EnterCriticalSection(ptd->pCs);
 		ZeroMemory(sharedMemory, sizeof(sharedMemory));
+		sharedMemory->numEmpresas = *ptd->numEmpresas;
 		_tcscpy_s(sharedMemory->ultimaTransacao, SMALL_TEXT, ptd->ultimaTransacao);
 		CopyMemory(sharedMemory->empresas, ptd->empresas, sizeof(EMPRESA) * MAX_EMPRESAS_TO_SHM);
 		LeaveCriticalSection(ptd->pCs);
@@ -272,6 +273,12 @@ DWORD WINAPI ThreadClient(LPVOID data) {
 		if (!GerePedidos(ptd_w, codigo)) { break; }
 	}
 	
+	if (ptd_w->ligado) {
+		EnterCriticalSection(ptd_w->ptd->pCs);
+		LogOutUser(GetPtrToUser(ptd_w->nomeUser, ptd_w->ptd));
+		LeaveCriticalSection(ptd_w->ptd->pCs);
+	}
+
 	ReleaseSemaphore(ptd_w->hSemClientes, 1, NULL);
 
 	FlushFileBuffers(ptd_w->hPipe);
@@ -553,8 +560,8 @@ BOOL GerePedidos(TD_WRAPPER* threadData, const DWORD codigo) {
 			r_login.resultado = ValidaLogin(threadData, login);
 
 			if (r_login.resultado) {
-				_tprintf_s(_T("\n[CLIENTE - N.º%d] O cliente '%s' iniciou sessão..."), 
-					threadData->id, threadData->nomeUser);
+				_tprintf_s(_T("\n[CLIENTE N.º%d] O cliente '%s' iniciou sessão..."), 
+					threadData->id + 1, threadData->nomeUser);
 			}
 
 			if (!SendRespostaLogin(threadData, r_login)) { return FALSE; }
@@ -630,7 +637,7 @@ BOOL GetLogin(const TD_WRAPPER* threadData, _LOGIN* login) {
 	TCHAR errorMsg[SMALL_TEXT];
 
 	if (!ReadFile(threadData->hPipe, login, sizeof(_LOGIN), &nbytes, NULL)) {
-		_stprintf_s(errorMsg, SMALL_TEXT, _T("[CLIENTE - N.º%d] - ReadFile"), threadData->id);
+		_stprintf_s(errorMsg, SMALL_TEXT, _T("[CLIENTE N.º%d] - ReadFile"), threadData->id + 1);
 		PrintErrorMsg(GetLastError(), errorMsg);
 		return FALSE;
 	}
@@ -646,7 +653,7 @@ BOOL GetCompra(const TD_WRAPPER* threadData, COMPRA* compra) {
 	TCHAR errorMsg[SMALL_TEXT];
 
 	if (!ReadFile(threadData->hPipe, compra, sizeof(COMPRA), &nbytes, NULL)) {
-		_stprintf_s(errorMsg, SMALL_TEXT, _T("[CLIENTE - N.º%d] - ReadFile"), threadData->id);
+		_stprintf_s(errorMsg, SMALL_TEXT, _T("[CLIENTE N.º%d] - ReadFile"), threadData->id + 1);
 		PrintErrorMsg(GetLastError(), errorMsg);
 		return FALSE;
 	}
@@ -662,7 +669,7 @@ BOOL GetVenda(const TD_WRAPPER* threadData, VENDA* venda) {
 	TCHAR errorMsg[SMALL_TEXT];
 
 	if (!ReadFile(threadData->hPipe, venda, sizeof(VENDA), &nbytes, NULL)) {
-		_stprintf_s(errorMsg, SMALL_TEXT, _T("[CLIENTE - N.º%d] - ReadFile"), threadData->id);
+		_stprintf_s(errorMsg, SMALL_TEXT, _T("[CLIENTE N.º%d] - ReadFile"), threadData->id + 1);
 		PrintErrorMsg(GetLastError(), errorMsg);
 		return FALSE;
 	}
@@ -1386,4 +1393,8 @@ USER* GetPtrToUser(const TCHAR* Nome, TDATA_BOLSA* dados) {
 	}
 
 	return NULL;
+}
+
+void LogOutUser(USER* user) {
+	user->ligado = FALSE;
 }

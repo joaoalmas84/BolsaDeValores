@@ -15,6 +15,9 @@ typedef struct {
 
 DWORD WINAPI ThreadGetChar(LPVOID data);
 
-void PrintTop(const EMPRESA empresas[], DWORD numTop);
+void PrintTop(
+	const EMPRESA empresas[], 
+	DWORD numTop, 
+	DWORD numEmpresas);
 
 

@@ -240,4 +240,8 @@ int ComparaEmpresas(
 
 DWORD GetHandlePipeLivre(HANDLE hPipes[NCLIENTES]);
 
-USER* GetPtrToUser(const TCHAR* Nome, TDATA_BOLSA* dados);
+USER* GetPtrToUser(
+	const TCHAR* Nome, 
+	TDATA_BOLSA* dados);
+
+void LogOutUser(USER* user);

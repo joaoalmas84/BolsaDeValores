@@ -23,9 +23,15 @@ DWORD WINAPI ThreadGetChar(LPVOID data) {
     ExitThread(6);
 }
 
-void PrintTop(const EMPRESA empresas[], DWORD numTop) {
-    if (empresas[0].numAcoes == 0) { return; }
+void PrintTop(const EMPRESA empresas[], DWORD numTop, DWORD numEmpresas) {
+    if (numEmpresas <= 0) { return; }
 
-    _tprintf_s(_T("\nTOP %d \nEmpresas mais bem cotadas da bolsa"), numTop);
-    PrintEmpresas(empresas, numTop);
+    if (numEmpresas < numTop) {
+        _tprintf_s(_T("\nTOP %d \nEmpresas mais bem cotadas da bolsa"), numEmpresas);
+        PrintEmpresas(empresas, numEmpresas);
+    } else {
+        _tprintf_s(_T("\nTOP %d \nEmpresas mais bem cotadas da bolsa"), numTop);
+        PrintEmpresas(empresas, numTop);
+    }
+
 }
