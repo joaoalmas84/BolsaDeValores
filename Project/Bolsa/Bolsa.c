@@ -52,21 +52,32 @@ DWORD WINAPI ThreadBoard(LPVOID data) {
 	_tprintf_s(_T("\n[BOLSA] A lançar ThreadBoard..."));
 
 	while (continua) {
+
+		WaitForSingleObject(hMutex, INFINITE);
 		EnterCriticalSection(ptd->pCs);
 		ZeroMemory(sharedMemory, sizeof(sharedMemory));
 		sharedMemory->numEmpresas = *ptd->numEmpresas;
+		sharedMemory->continua = continua;
 		_tcscpy_s(sharedMemory->ultimaTransacao, SMALL_TEXT, ptd->ultimaTransacao);
 		CopyMemory(sharedMemory->empresas, ptd->empresas, sizeof(EMPRESA) * MAX_EMPRESAS_TO_SHM);
 		LeaveCriticalSection(ptd->pCs);
+		ReleaseMutex(hMutex);
 
 		SetEvent(hEvent); // Avisa a Board de que pode voltar atualizar o TOP
 		ResetEvent(hEvent);
+
 		WaitForSingleObject(ptd->hEvent_Board, INFINITE); // Espera por alteracoes aos dados
 
 		EnterCriticalSection(ptd->pCs);
 		continua = *ptd->continua;
 		LeaveCriticalSection(ptd->pCs);
 	}
+
+	WaitForSingleObject(hMutex, INFINITE);
+	sharedMemory->continua = FALSE;
+	ReleaseMutex(hMutex);
+
+	SetEvent(hEvent); // Avisa a Board de que pode voltar atualizar o TOP
 
 	_tprintf_s(_T("\n[BOLSA] A fechar ThreadBoard..."));
 

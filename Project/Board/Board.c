@@ -11,8 +11,9 @@
 
 DWORD WINAPI ThreadGetChar(LPVOID data) {
     TDATA_BOARD* ptd = (TDATA_BOARD*)data;
+    TCHAR input[SMALL_TEXT];
 
-    TCHAR c = _gettchar();
+    _getts_s(input, SMALL_TEXT);
 
     EnterCriticalSection(ptd->pCs);
     ptd->continua = FALSE;

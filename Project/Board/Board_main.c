@@ -19,7 +19,8 @@ int _tmain(int argc, TCHAR* argv[]) {
     
     EMPRESA empresas[MAX_EMPRESAS_TO_SHM];
     DWORD numEmpresas;
-    BOOL continua = TRUE;
+    BOOL continua_Board = TRUE;
+    BOOL continua_Bolsa = TRUE;
 
     // Variáveis da Thread
     DWORD threadId;
@@ -30,7 +31,7 @@ int _tmain(int argc, TCHAR* argv[]) {
     // Variaveis da SharedMemory
     SHM* sharedMemory;
     HANDLE hMap;
-    HANDLE hMutex_SHM;
+    HANDLE hMutex;
     HANDLE hEvent_SHM; // Evento SHM (Reset Manual);
 
     // Array de Eventos para o WaitForMultipleObjects();
@@ -53,8 +54,8 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     if (N > 10) { N = 10; }
 
-    hMutex_SHM = OpenMutex(SYNCHRONIZE, FALSE, SHM_MUTEX);
-    if (hMutex_SHM == NULL) {
+    hMutex = OpenMutex(SYNCHRONIZE, FALSE, SHM_MUTEX);
+    if (hMutex == NULL) {
         codigoErro = GetLastError();
         if (codigoErro == ERROR_FILE_NOT_FOUND) {
             _tprintf_s(_T("\nO programa Bolsa ainda não se encontra em execução."));
@@ -67,14 +68,14 @@ int _tmain(int argc, TCHAR* argv[]) {
     hMap = OpenFileMapping(FILE_MAP_READ, FALSE, SHARED_MEMORY);
     if (hMap == NULL) {
         PrintErrorMsg(GetLastError(), _T("Erro em OpenFileMapping"));
-        CloseHandle(hMutex_SHM);
+        CloseHandle(hMutex);
         return 1;
     }
 
     sharedMemory = (SHM*)MapViewOfFile(hMap, FILE_MAP_READ, 0, 0, 0);
     if (sharedMemory == NULL) {
         PrintErrorMsg(GetLastError(), _T("Erro em MapViewOfFile"));
-        CloseHandle(hMutex_SHM);
+        CloseHandle(hMutex);
         CloseHandle(hMap);
         return 1;
     }
@@ -82,26 +83,26 @@ int _tmain(int argc, TCHAR* argv[]) {
     hEvent_SHM = OpenEvent(SYNCHRONIZE, FALSE, SHM_EVENT);
     if (hEvent_SHM == NULL) {
         PrintErrorMsg(GetLastError(), _T("Erro em OpenEvent"));
-        CloseHandle(hMutex_SHM);
+        CloseHandle(hMutex);
         CloseHandle(hMap);
         return 1;
     }
 
     if (!InitializeCriticalSectionAndSpinCount(&cs, 0)) {
         PrintErrorMsg(GetLastError(), _T("Erro em InitializeCriticalSectionAndSpinCount"));
-        CloseHandle(hMutex_SHM);
+        CloseHandle(hMutex);
         CloseHandle(hEvent_SHM);
         CloseHandle(hMap);
         return 1;
     }
 
     threadData.pCs = &cs;
-    threadData.continua = &continua;
+    threadData.continua = &continua_Board;
 
     threadData.hEvent_Exit = CreateEvent(NULL, FALSE, FALSE, NULL);
     if (threadData.hEvent_Exit == NULL) {
         PrintErrorMsg(GetLastError(), _T("Erro em CreateEvent"));
-        CloseHandle(hMutex_SHM);
+        CloseHandle(hMutex);
         CloseHandle(hEvent_SHM);
         CloseHandle(hMap);
         return 1;
@@ -110,17 +111,17 @@ int _tmain(int argc, TCHAR* argv[]) {
     hThread = CreateThread(NULL, 0, ThreadGetChar, (LPVOID)&threadData, 0, &threadId);
     if (hThread == NULL) {
         PrintErrorMsg(GetLastError(), _T("Erro ao lançar ThreadRead"));
-        CloseHandle(hMutex_SHM);
+        CloseHandle(hMutex);
         CloseHandle(hEvent_SHM);
         CloseHandle(hMap);
         return 1;
     }
 
-    WaitForSingleObject(hMutex_SHM, INFINITE);
+    WaitForSingleObject(hMutex, INFINITE);
     numEmpresas = sharedMemory->numEmpresas;
     _tcscpy_s(ultimaTransacao, SMALL_TEXT, sharedMemory->ultimaTransacao);
     CopyMemory(empresas, sharedMemory->empresas, sizeof(EMPRESA) * MAX_EMPRESAS_TO_SHM);
-    ReleaseMutex(hMutex_SHM);
+    ReleaseMutex(hMutex);
 
     if (numEmpresas <= 0) {
         _tprintf_s(_T("\nAinda não existem empresas registadas no sistema"));
@@ -130,7 +131,7 @@ int _tmain(int argc, TCHAR* argv[]) {
     hEvents[0] = hEvent_SHM;
     hEvents[1] = threadData.hEvent_Exit;
 
-    while (continua) {
+    while (continua_Board && continua_Bolsa) {
         system("cls");
 
         PrintTop(empresas, N, numEmpresas);
@@ -140,11 +141,28 @@ int _tmain(int argc, TCHAR* argv[]) {
 
         WaitForMultipleObjects(2, hEvents, FALSE, INFINITE);
 
+        WaitForSingleObject(hMutex, INFINITE);
         EnterCriticalSection(&cs);
         _tcscpy_s(ultimaTransacao, SMALL_TEXT, sharedMemory->ultimaTransacao);
         CopyMemory(empresas, sharedMemory->empresas, sizeof(EMPRESA) * MAX_EMPRESAS_TO_SHM);
-        continua = *threadData.continua;
+        continua_Board = *threadData.continua;
+        continua_Bolsa = sharedMemory->continua;
         LeaveCriticalSection(&cs);
+        ReleaseMutex(hMutex);
+
+        Sleep(30000);
+
+    }
+
+    if (continua_Board) {
+        EnterCriticalSection(&cs);
+        continua_Board = FALSE;
+        LeaveCriticalSection(&cs);
+
+        if (!CancelSynchronousIo(hThread)) {
+            PrintErrorMsg(GetLastError(), _T("CancelSynchronousIo"));
+            exit(-1);
+        }
     }
 
     WaitForSingleObject(hThread, INFINITE);
@@ -157,7 +175,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     CloseHandle(hMap);
 
-    CloseHandle(hMutex_SHM);
+    CloseHandle(hMutex);
 
     return 0;
 }
