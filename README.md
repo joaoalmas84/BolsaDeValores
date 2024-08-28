@@ -1,7 +1,7 @@
-# Bolsa de Valores Online
+# Bolsa de Valores
 
 ## Descrição do Projeto
-Este projeto consiste na implementação de uma bolsa de valores online simplificada, desenvolvida como parte do trabalho prático da unidade curricular de Sistemas Operativos 2 (SO2) do curso de Engenharia Informática. O sistema é composto por vários programas que interagem entre si para simular uma bolsa de valores, onde ações de empresas podem ser compradas e vendidas.
+Este projeto consiste na implementação de uma bolsa de valores simplificada, desenvolvida como parte do trabalho prático da unidade curricular de Sistemas Operativos 2 (SO2) do curso de Engenharia Informática. O sistema é composto por vários programas que interagem entre si para simular uma bolsa de valores, onde ações de empresas podem ser compradas e vendidas.
 
 ## Estrutura do Projeto
 O sistema é composto por quatro programas principais:
